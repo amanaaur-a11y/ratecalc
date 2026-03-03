@@ -2119,6 +2119,9 @@
             heavyCount = 0;
             oversizeCount = 0;
 
+            const HEAVY_THRESHOLD = 25.1;
+            const OVERWEIGHT_THRESHOLD = 70.1;
+
             state.pieces.forEach((p, idx) => {
                 let rawWeight = parseFloat(p.weight) || 0;
                 const act = state.weightUnit === 'lb' ? rawWeight * 0.45359237 : rawWeight;
@@ -2146,11 +2149,11 @@
                 totalVolumetricWeight += vol;
                 totalChargeableSum += roundedPieceChg;
                 
-                // ЛОГИКА ИЗМЕНЕНА: Используем rawChg (оплачиваемый вес места), а не act (физический)
-                // Если объемный вес > 70 кг, сработает "Массивный груз"
-                if (rawChg > 70) {
+                // Для каждого места берём оплачиваемый вес (max физ./объёмного)
+                // и выбираем только одну весовую надбавку — самую дорогую.
+                if (rawChg >= OVERWEIGHT_THRESHOLD) {
                     overweightCount++;
-                } else if (rawChg >= 25 && rawChg <= 70) {
+                } else if (rawChg >= HEAVY_THRESHOLD) {
                     heavyCount++;
                 }
                 
@@ -2163,7 +2166,7 @@
                     index: idx + 1,
                     act, vol, 
                     chg: roundedPieceChg, 
-                    isOverweight: rawChg > 70, // Также обновляем флаг в детализации
+                    isOverweight: rawChg >= OVERWEIGHT_THRESHOLD,
                     isOversize: isOversize
                 });
             });
