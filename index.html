@@ -1,0 +1,2716 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DHL Rate Calculator</title>
+    <!-- Подключаем Tailwind CSS для стилей -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Анимации */
+        @keyframes fly-plane { 0% { transform: translateX(-150%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateX(150%); opacity: 0; } }
+        @keyframes fly-plane-line {
+            0% { left: 0%; opacity: 0; transform: translateY(-50%); }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { left: 100%; opacity: 0; transform: translateY(-50%) translateX(-100%); }
+        }
+        .plane-anim-line { position: absolute; animation: fly-plane-line 7s linear infinite; }
+        @keyframes fall {
+            0% { transform: translateY(-10vh) translateX(0); opacity: 0.8; }
+            100% { transform: translateY(110vh) translateX(20px); opacity: 0; }
+        }
+       
+        /* Новые анимации для иконок ввода */
+        @keyframes jump-icon {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        .animate-jump {
+            animation: jump-icon 0.4s ease-in-out;
+        }
+
+        @keyframes spin-once {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .animate-spin-once {
+            animation: spin-once 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* Анимация для коробки упаковки */
+        @keyframes box-pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2) rotate(-5deg); }
+            100% { transform: scale(1) rotate(0); }
+        }
+        .animate-box-pop {
+            animation: box-pop 0.4s ease-out;
+        }
+
+        /* Скроллбар */
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+       
+        body { font-family: system-ui, -apple-system, sans-serif; }
+       
+        /* Стили для календаря */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            opacity: 0.6;
+            transition: 0.2s;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-6 flex justify-center items-center relative overflow-x-hidden text-gray-800">
+
+    <!-- Фон: Снег -->
+    <div id="snowfall-container" class="fixed inset-0 pointer-events-none z-0 overflow-hidden mix-blend-overlay opacity-30"></div>
+
+    <!-- Модальное окно настроек -->
+    <div id="settings-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden opacity-0 transition-opacity duration-200">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform scale-95 transition-transform duration-200">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 class="text-xl font-black text-gray-900 flex items-center gap-2">
+                    <span class="text-[#F59E0B]"><!-- Icon Settings -->
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.39a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </span>
+                    Настройки курсов
+                </h3>
+                <button id="close-settings" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                <!-- Кнопка обновления НБКР -->
+                <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center justify-between">
+                    <div class="flex items-center gap-2 text-blue-700 font-bold text-sm">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+                        <span>Курс НБКР</span>
+                    </div>
+                    <button onclick="fetchNbkrRates()" id="btn-nbkr-update" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors shadow-sm flex items-center gap-2">
+                        <span>Обновить сейчас</span>
+                    </button>
+                </div>
+                <div id="nbkr-status" class="text-[10px] text-center text-gray-400 -mt-4 hidden">Последнее обновление: <span id="nbkr-date">--</span></div>
+
+                <div>
+                    <label class="flex items-center gap-2 text-sm font-extrabold text-gray-800 mb-2 uppercase tracking-wide">Топливная надбавка (%)</label>
+                    <div class="relative">
+                        <input type="number" id="setting-fuel" class="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#F59E0B] transition-all font-bold text-gray-800">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">%</span>
+                    </div>
+                </div>
+                <!-- НОВОЕ ПОЛЕ: НСП -->
+                <div>
+                    <label class="flex items-center gap-2 text-sm font-extrabold text-gray-800 mb-2 uppercase tracking-wide">НСП (%)</label>
+                    <div class="relative">
+                        <input type="number" id="setting-nsp" class="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#F59E0B] transition-all font-bold text-gray-800">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">%</span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="flex items-center gap-2 text-sm font-extrabold text-gray-800 mb-2 uppercase tracking-wide">Курс EUR (€)</label>
+                        <div class="relative">
+                            <input type="number" id="setting-eur" class="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#F59E0B] transition-all font-bold text-gray-800">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">KGS</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="flex items-center gap-2 text-sm font-extrabold text-gray-800 mb-2 uppercase tracking-wide">Курс USD ($)</label>
+                        <div class="relative">
+                            <input type="number" id="setting-usd" class="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#F59E0B] transition-all font-bold text-gray-800">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">KGS</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="pt-4 border-t border-gray-100">
+                    <label class="flex items-center gap-2 text-xs font-extrabold text-gray-800 mb-2 uppercase tracking-wide">Коэффициенты Demand ($/€ за кг)</label>
+                    <div class="grid grid-cols-2 gap-4 mt-2">
+                        <div>
+                            <span class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Документы</span>
+                            <div class="relative">
+                                <input type="number" id="setting-demand-doc" class="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#F59E0B] transition-all font-bold text-gray-800">
+                                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">/KG</span>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Грузы</span>
+                            <div class="relative">
+                                <input type="number" id="setting-demand-goods" class="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#F59E0B] transition-all font-bold text-gray-800">
+                                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">/KG</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- НОВОЕ: Настройка DTP -->
+                <div class="pt-4 border-t border-gray-100">
+                    <label class="flex items-center gap-2 text-xs font-extrabold text-gray-800 mb-2 uppercase tracking-wide">Базовые тарифы (€)</label>
+                    <div class="mt-2">
+                        <div>
+                            <span class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Оплата пошлин (DTP)</span>
+                            <div class="relative">
+                                <input type="number" id="setting-dtp" class="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#F59E0B] transition-all font-bold text-gray-800">
+                                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">€</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="p-6 pt-0">
+                <button id="save-settings" class="w-full bg-[#F59E0B] text-white py-3 rounded-xl font-bold text-lg shadow-lg shadow-yellow-900/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                    Сохранить настройки
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно истории -->
+    <div id="history-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden opacity-0 transition-opacity duration-200">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden transform scale-95 transition-transform duration-200 flex flex-col max-h-[85vh]">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 class="text-xl font-black text-gray-900 flex items-center gap-2">
+                    <span class="text-blue-500">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+                    </span>
+                    История расчетов
+                </h3>
+                <div class="flex items-center gap-3">
+                    <button onclick="clearAllHistory()" class="text-xs font-bold text-red-500 hover:text-red-700 uppercase tracking-wider transition-colors">Очистить всё</button>
+                    <button id="close-history" class="text-gray-400 hover:text-gray-600 transition-colors bg-white rounded-full p-1 border border-gray-200 hover:border-gray-400">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="p-0 flex-1 overflow-y-auto bg-gray-50 scrollbar-thin" id="history-list">
+                <!-- Сюда добавляются элементы истории -->
+                <div class="flex flex-col items-center justify-center h-64 text-gray-400">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-2 opacity-50"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+                    <p class="text-sm font-bold opacity-70">История пуста</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Основной контент -->
+    <div class="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-8 z-10 relative">
+       
+        <!-- Левая колонка: Ввод данных -->
+        <div class="lg:col-span-7 space-y-6">
+           
+            <!-- Заголовок и Переключатель -->
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <h1 class="text-3xl font-black text-[#F59E0B] italic uppercase tracking-tighter drop-shadow-sm flex flex-col leading-none">
+                        DHL EXPRESS
+                        <span class="text-gray-900 not-italic font-black text-xl tracking-normal opacity-80">КАЛЬКУЛЯТОР</span>
+                    </h1>
+                    <!-- Кнопка открытия истории -->
+                    <button id="open-history-btn" class="ml-2 relative group p-2 rounded-xl bg-white border-2 border-gray-100 hover:border-blue-400 hover:shadow-md transition-all">
+                        <svg class="text-gray-400 group-hover:text-blue-500 transition-colors" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+                        <span id="history-count-badge" class="absolute -top-2 -right-2 w-5 h-5 bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center opacity-0 transition-opacity">0</span>
+                    </button>
+                </div>
+
+                <!-- Обновленный переключатель (3 позиции) -->
+                <div class="relative bg-white/50 p-1.5 rounded-2xl backdrop-blur-md border-2 border-white/60 w-[340px] grid grid-cols-3 isolate shadow-lg">
+                    <div id="dir-pill" class="absolute top-1.5 bottom-1.5 left-1.5 w-[calc(33.33%-4px)] bg-[#F59E0B] rounded-xl shadow-lg shadow-yellow-600/30 transition-transform duration-300 cubic-bezier(0.34, 1.56, 0.64, 1)"></div>
+                    <button onclick="setDirection('export')" class="relative z-10 py-3 text-xs sm:text-sm font-black uppercase tracking-wider transition-colors duration-200 text-white" id="btn-export">Экспорт</button>
+                    <button onclick="setDirection('import')" class="relative z-10 py-3 text-xs sm:text-sm font-black uppercase tracking-wider transition-colors duration-200 text-gray-700 hover:text-[#F59E0B]" id="btn-import">Импорт</button>
+                    <button onclick="setDirection('storage')" class="relative z-10 py-3 text-xs sm:text-sm font-black uppercase tracking-wider transition-colors duration-200 text-gray-700 hover:text-[#F59E0B]" id="btn-storage">Хранение</button>
+                </div>
+            </div>
+
+            <!-- Карточка формы -->
+            <div class="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-white/60 p-8 space-y-8 min-h-[500px]">
+               
+                <!-- ФОРМА: ЭКСПОРТ / ИМПОРТ -->
+                <div id="main-calculator-form">
+                    
+                    <!-- КНОПКА НАСТРОЕК (ПЕРЕМЕЩЕНА СЮДА) -->
+                    <div class="flex justify-end mb-4">
+                        <button id="open-settings-btn" class="flex items-center gap-2 bg-[#FFCC00] hover:bg-[#F59E0B] text-gray-900 transition-all duration-300 group px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transform active:scale-95 border-b-4 border-[#e6b800] hover:border-[#d9a300]">
+                            <svg class="group-hover:rotate-45 transition-transform duration-300" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.39a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                            <span class="font-black text-xs uppercase tracking-wider">Настройки курсов</span>
+                        </button>
+                    </div>
+
+                    <!-- Выбор страны -->
+                    <div class="relative group" id="country-wrapper">
+                        <label id="country-label" class="flex items-center gap-2 text-sm font-extrabold text-gray-800 mb-2 uppercase tracking-wide">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                            Страна назначения
+                        </label>
+                        <div id="country-trigger" class="w-full px-4 py-3 bg-white border-2 border-transparent hover:border-gray-200 rounded-xl flex items-center justify-between cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md">
+                            <span id="selected-country-name" class="font-bold text-base text-gray-400">Поиск страны...</span>
+                            <svg class="text-gray-400 transition-transform duration-300" id="country-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        </div>
+                        <!-- Dropdown -->
+                        <div id="country-dropdown" class="absolute z-50 w-full mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden hidden transform transition-all duration-200 origin-top scale-95 opacity-0">
+                            <div class="p-3 border-b border-gray-100 bg-gray-50">
+                                <input type="text" id="country-search" placeholder="Поиск..." class="w-full pl-4 pr-4 py-2 bg-white border-2 border-gray-100 rounded-lg text-sm font-bold focus:outline-none focus:border-[#F59E0B] transition-all">
+                            </div>
+                            <div id="country-list" class="max-h-64 overflow-y-auto scrollbar-thin">
+                                <!-- Items inserted by JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Тип груза -->
+                    <div class="space-y-3 mt-8">
+                        <label class="flex items-center gap-2 text-sm font-extrabold text-gray-800 mb-2 uppercase tracking-wide">
+                            <span id="type-icon-wrapper">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
+                            </span>
+                            Тип груза
+                        </label>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="setType('doc')" id="btn-type-doc" class="group border-2 rounded-2xl p-4 flex flex-col items-center gap-2 transition-all duration-300 active:scale-95 bg-yellow-50 border-[#F59E0B] shadow-xl shadow-yellow-900/10 scale-[1.02]">
+                                <!-- Dynamic Document Icon Container -->
+                                <div id="doc-icon-container" class="transition-transform duration-300">
+                                    <!-- Initial Icon (Single) -->
+                                    <svg width="48" height="48" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-sm">
+                                        <g transform="translate(0,0)">
+                                            <path d="M12 4C12 2.89543 12.8954 2 14 2H42L56 16V60C56 61.1046 55.1046 62 54 62H14C12.8954 62 12 61.1046 12 60V4Z" fill="#F3F4F6"/>
+                                            <path d="M12 4C12 2.89543 12.8954 2 14 2H42L56 16V60C56 61.1046 55.1046 62 54 62H14C12.8954 62 12 61.1046 12 60V4Z" fill="white" fill-opacity="0.5"/>
+                                            <path d="M42 2V16H56" fill="#D1D5DB"/>
+                                            <rect x="20" y="14" width="16" height="3" rx="1.5" fill="#F59E0B" fill-opacity="0.8"/>
+                                            <rect x="20" y="24" width="28" height="2" rx="1" fill="#9CA3AF"/>
+                                            <rect x="20" y="32" width="28" height="2" rx="1" fill="#9CA3AF"/>
+                                            <rect x="20" y="40" width="28" height="2" rx="1" fill="#9CA3AF"/>
+                                            <rect x="20" y="48" width="20" height="2" rx="1" fill="#9CA3AF"/>
+                                            <path d="M42 2L56 16M42 2H14C12.8954 2 12 2.89543 12 4V60C12 61.1046 12.8954 62 14 62H54C55.1046 62 56 61.1046 56 60V16M42 2V16H56" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </g>
+                                    </svg>
+                                </div>
+                                <span id="label-type-doc" class="font-black text-sm uppercase text-[#F59E0B]">Документы</span>
+                                <span id="doc-min-label" class="text-[10px] font-bold px-3 py-1 rounded-full bg-yellow-100 text-[#F59E0B]">Мин. 0.3 кг</span>
+                            </button>
+                           
+                            <button onclick="setType('goods')" id="btn-type-goods" class="group border-2 rounded-2xl p-4 flex flex-col items-center gap-2 transition-all duration-300 active:scale-95 bg-white border-gray-100 hover:border-gray-300 hover:bg-gray-50">
+                                <!-- Dynamic Goods Icon Container -->
+                                <div id="goods-icon-container" class="transition-transform duration-300">
+                                    <!-- Initial Icon (Single Box) -->
+                                    <svg width="48" height="48" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-sm">
+                                        <g transform="translate(0,0)">
+                                            <path d="M12 20L32 10L52 20V50L32 60L12 50V20Z" fill="#DFA956"/>
+                                            <path d="M12 20L32 32V60L12 50V20Z" fill="#C68F3C"/>
+                                            <path d="M52 20L32 32V60L52 50V20Z" fill="#B07D30"/>
+                                            <path d="M12 20L32 10L52 20L32 32L12 20Z" fill="#F3C87A"/>
+                                            <path d="M26 13L32 10L38 13L32 16L26 13Z" fill="#E5E7EB" fill-opacity="0.6"/>
+                                            <path d="M32 32V60" stroke="#9A6B24" stroke-width="1" stroke-opacity="0.3"/>
+                                            <path d="M12 20L32 32M52 20L32 32M32 60V32" stroke="#8D6222" stroke-width="1" stroke-linejoin="round"/>
+                                            <path d="M12 20L32 10L52 20" stroke="#B07D30" stroke-width="1" stroke-linejoin="round"/>
+                                        </g>
+                                    </svg>
+                                </div>
+                                <span id="label-type-goods" class="font-black text-sm uppercase text-gray-500">Посылка</span>
+                                <span id="goods-min-label" class="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-100 text-gray-400">Мин. 0.5 кг</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Места (Pieces) -->
+                    <div class="space-y-4 mt-8">
+                        <div class="flex justify-between items-center">
+                            <label class="flex items-center gap-2 text-sm font-extrabold text-gray-800 uppercase tracking-wide">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
+                                Параметры мест
+                            </label>
+                            <div class="flex items-center gap-3">
+                                <button onclick="clearPieces()" class="text-[10px] font-bold text-yellow-600 hover:text-white hover:bg-yellow-500 px-2 py-1 rounded transition-colors uppercase tracking-wider border border-yellow-100 hover:border-yellow-500 flex items-center gap-1">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                    Очистить
+                                </button>
+                                <span id="total-pieces-badge" class="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200">Всего мест: 1</span>
+                            </div>
+                        </div>
+                        <div id="pieces-container" class="space-y-4">
+                            <!-- Pieces rendered by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Доп опции (Surcharges) - ТЕПЕРЬ ВЫШЕ -->
+                    <div class="pt-6 border-t-2 border-gray-100 mt-8">
+                        <div id="surcharges-header" class="flex items-center justify-between cursor-pointer group p-2 -ml-2 rounded-lg hover:bg-gray-50 transition-colors">
+                            <label class="flex items-center gap-2 text-sm font-extrabold text-gray-800 uppercase tracking-wide cursor-pointer">
+                                <!-- Добавил ID и классы анимации -->
+                                <svg id="surcharges-plus-icon" class="transition-transform duration-700 ease-in-out" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                Актуальные надбавки
+                            </label>
+                            <!-- Обновил анимацию стрелки: теперь она плавная (0.7s) как и плюс -->
+                            <svg id="surcharges-chevron" class="text-gray-400 group-hover:text-[#F59E0B] transition-all duration-700 ease-in-out" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                        <!-- Убрал hidden, добавил классы для анимации разворачивания (max-h-0 -> max-h-[...]) -->
+                        <div id="surcharges-list" class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] max-h-0 opacity-0 overflow-hidden transform scale-95 origin-top">
+                            <!-- Surcharges rendered by JS -->
+                        </div>
+                    </div>
+
+                    <!-- НОВОЕ МЕНЮ: УПАКОВКА ГРУЗА - ТЕПЕРЬ НИЖЕ -->
+                    <div class="pt-6 border-t-2 border-gray-100 mt-8">
+                        <div id="packaging-header" class="flex items-center justify-between cursor-pointer group p-2 -ml-2 rounded-lg hover:bg-gray-50 transition-colors">
+                            <label class="flex items-center gap-2 text-sm font-extrabold text-gray-800 uppercase tracking-wide cursor-pointer group-hover:text-[#F59E0B] transition-colors">
+                                <!-- Новая иконка Коробки -->
+                                <div id="packaging-icon-wrapper" class="transition-transform duration-300">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                                    </svg>
+                                </div>
+                                Упаковка груза
+                            </label>
+                            <svg id="packaging-chevron" class="text-gray-400 group-hover:text-[#F59E0B] transition-all duration-700 ease-in-out" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                        <div id="packaging-list" class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] max-h-0 opacity-0 overflow-hidden transform scale-95 origin-top">
+                            <!-- Packaging items rendered by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Скидка и Прочее -->
+                    <div class="pt-6 border-t-2 border-gray-100 grid grid-cols-2 gap-6 mt-8">
+                        <div id="discount-block" class="cursor-pointer group">
+                            <label class="flex items-center gap-2 text-sm font-extrabold text-gray-800 mb-2 uppercase tracking-wide cursor-pointer">
+                                <!-- Добавлен ID для анимации скидки -->
+                                <svg id="discount-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+                                Скидка клиента
+                            </label>
+                            <div class="relative">
+                                <input type="number" id="discount-input" placeholder="0" class="w-full px-4 py-3 bg-white border-2 border-transparent rounded-xl focus:outline-none focus:ring-4 focus:ring-[#F59E0B]/10 focus:border-[#F59E0B] transition-all duration-200 font-bold text-gray-800 placeholder-gray-400 shadow-sm hover:shadow-md group-hover:border-gray-200">
+                                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-black text-lg opacity-30">%</span>
+                            </div>
+                        </div>
+                        <div id="extra-charges-block" class="cursor-pointer group">
+                            <label class="flex items-center gap-2 text-sm font-extrabold text-gray-800 mb-2 uppercase tracking-wide cursor-pointer">
+                                <!-- Добавлен ID для анимации плюсика -->
+                                <svg id="extra-charges-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                                Прочие надбавки
+                            </label>
+                            <div class="relative">
+                                <input type="number" id="extra-charges-input" placeholder="0" class="w-full px-4 py-3 bg-white border-2 border-transparent rounded-xl focus:outline-none focus:ring-4 focus:ring-[#F59E0B]/10 focus:border-[#F59E0B] transition-all duration-200 font-bold text-gray-800 placeholder-gray-400 shadow-sm hover:shadow-md group-hover:border-gray-200">
+                                <span id="extra-currency-symbol" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-black text-lg opacity-30">$</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ФОРМА: ХРАНЕНИЕ (Новая) -->
+                <div id="storage-calculator-form" class="hidden space-y-8 animate-in fade-in duration-300">
+                    <div>
+                        <label class="flex items-center gap-2 text-sm font-extrabold text-gray-800 mb-2 uppercase tracking-wide">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                            Общий вес груза (КГ)
+                        </label>
+                        <div class="relative">
+                             <input type="number" id="storage-weight" placeholder="0.0" class="w-full text-3xl font-black px-4 py-3 bg-white border-2 border-transparent rounded-xl focus:outline-none focus:ring-4 focus:ring-[#F59E0B]/10 focus:border-[#F59E0B] transition-all duration-200 text-gray-800 placeholder-gray-300 shadow-sm hover:shadow-md">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="flex items-center gap-2 text-sm font-extrabold text-gray-800 mb-2 uppercase tracking-wide">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                            Период хранения
+                        </label>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="relative">
+                                <label class="text-[10px] text-gray-400 font-bold uppercase mb-1 block">Дата начала</label>
+                                <input type="date" id="storage-start" onclick="try{this.showPicker()}catch(e){}" class="w-full px-4 py-3 bg-white border-2 border-transparent rounded-xl focus:outline-none focus:ring-4 focus:ring-[#F59E0B]/10 focus:border-[#F59E0B] transition-all font-bold text-gray-800 shadow-sm cursor-pointer hover:bg-gray-50">
+                            </div>
+                            <div class="relative">
+                                <label class="text-[10px] text-gray-400 font-bold uppercase mb-1 block">Дата окончания</label>
+                                <input type="date" id="storage-end" onclick="try{this.showPicker()}catch(e){}" class="w-full px-4 py-3 bg-white border-2 border-transparent rounded-xl focus:outline-none focus:ring-4 focus:ring-[#F59E0B]/10 focus:border-[#F59E0B] transition-all font-bold text-gray-800 shadow-sm cursor-pointer hover:bg-gray-50">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-yellow-50 rounded-xl p-4 border border-yellow-100 text-sm text-gray-600">
+                        <div class="flex items-center gap-2 font-bold text-[#F59E0B] mb-2">
+                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></svg>
+                             Информация о тарифе
+                        </div>
+                        <ul class="list-disc list-inside space-y-1 ml-1 text-xs">
+                            <li>Стоимость хранения: <b>10 KGS</b> за кг в день</li>
+                            <li><b>Первые 3 дня — бесплатно</b></li>
+                            <li>Налог с продаж (НСП): рассчитывается от суммы хранения</li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Правая колонка: Результат -->
+        <div class="lg:col-span-5">
+            <div class="sticky top-2">
+                <div id="result-card" class="bg-white/95 backdrop-blur-xl p-8 rounded-[2rem] shadow-2xl relative border-t-[12px] border-gray-400 transition-all duration-500 hover:scale-[1.01]">
+                    <div class="text-center pb-6 mb-6 border-b-2 border-gray-100">
+                        <h2 class="text-3xl font-black text-gray-900 mb-1 tracking-tight">Итоговый расчет</h2>
+                    </div>
+
+                    <div id="results-content">
+                        <!-- Placeholder -->
+                        <div class="py-24 text-center opacity-50">
+                            <div class="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-300"><path d="M2 22h20"/><path d="M13 6 2 22"/><path d="m11 2 10.5 9.5-3.5 1-2.5 3.5"/></svg>
+                            </div>
+                            <p class="text-sm font-black text-gray-300 uppercase tracking-[0.2em] text-center">Заполните форму для расчета</p>
+                        </div>
+                    </div>
+
+                    <!-- Кнопка "Задать курс" УДАЛЕНА ОТСЮДА -->
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONSTANTS ---
+        const COUNTRIES_DATA = {
+            'AL': { zone: 3, name: 'Albania', ru: 'Албания' },
+            'DZ': { zone: 6, name: 'Algeria', ru: 'Алжир' },
+            'AS': { zone: 6, name: 'American Samoa', ru: 'Американское Самоа' },
+            'AD': { zone: 3, name: 'Andorra', ru: 'Андорра' },
+            'AO': { zone: 6, name: 'Angola', ru: 'Ангола' },
+            'AI': { zone: 6, name: 'Anguilla', ru: 'Ангилья' },
+            'AG': { zone: 6, name: 'Antigua', ru: 'Антигуа' },
+            'AR': { zone: 6, name: 'Argentina', ru: 'Аргентина' },
+            'AM': { zone: 2, name: 'Armenia', ru: 'Армения' },
+            'AW': { zone: 6, name: 'Aruba', ru: 'Аруба' },
+            'AU': { zone: 5, name: 'Australia', ru: 'Австралия' },
+            'AT': { zone: 2, name: 'Austria', ru: 'Австрия' },
+            'AZ': { zone: 2, name: 'Azerbaijan', ru: 'Азербайджан' },
+            'BS': { zone: 6, name: 'Bahamas', ru: 'Багамы' },
+            'BH': { zone: 6, name: 'Bahrain', ru: 'Бахрейн' },
+            'BD': { zone: 5, name: 'Bangladesh', ru: 'Бангладеш' },
+            'BB': { zone: 6, name: 'Barbados', ru: 'Барбадос' },
+            'BY': { zone: 2, name: 'Belarus', ru: 'Беларусь' },
+            'BE': { zone: 2, name: 'Belgium', ru: 'Бельгия' },
+            'BZ': { zone: 6, name: 'Belize', ru: 'Белиз' },
+            'BJ': { zone: 6, name: 'Benin', ru: 'Бенин' },
+            'BM': { zone: 6, name: 'Bermuda', ru: 'Бермуды' },
+            'BT': { zone: 5, name: 'Bhutan', ru: 'Бутан' },
+            'BO': { zone: 6, name: 'Bolivia', ru: 'Боливия' },
+            'XB': { zone: 6, name: 'Bonaire', ru: 'Бонайре' },
+            'BA': { zone: 3, name: 'Bosnia & Herzegovina', ru: 'Босния и Герцеговина' },
+            'BW': { zone: 6, name: 'Botswana', ru: 'Ботсвана' },
+            'BR': { zone: 6, name: 'Brazil', ru: 'Бразилия' },
+            'BN': { zone: 5, name: 'Brunei', ru: 'Бруней' },
+            'BG': { zone: 2, name: 'Bulgaria', ru: 'Болгария' },
+            'BF': { zone: 6, name: 'Burkina Faso', ru: 'Буркина-Фасо' },
+            'BI': { zone: 6, name: 'Burundi', ru: 'Бурунди' },
+            'KH': { zone: 5, name: 'Cambodia', ru: 'Камбоджа' },
+            'CM': { zone: 6, name: 'Cameroon', ru: 'Камерун' },
+            'CA': { zone: 4, name: 'Canada', ru: 'Канада' },
+            'IC': { zone: 3, name: 'Canary Islands, The', ru: 'Канарские о-ва' },
+            'CV': { zone: 6, name: 'Cape Verde', ru: 'Кабо-Верде' },
+            'KY': { zone: 6, name: 'Cayman Islands', ru: 'Кайман о-ва' },
+            'CF': { zone: 6, name: 'Central African Rep', ru: 'ЦАР' },
+            'TD': { zone: 6, name: 'Chad', ru: 'Чад' },
+            'CL': { zone: 6, name: 'Chile', ru: 'Чили' },
+            'CN': { zone: 5, name: 'China', ru: 'Китай' },
+            'CO': { zone: 6, name: 'Colombia', ru: 'Колумбия' },
+            'KM': { zone: 6, name: 'Comoros', ru: 'Коморы' },
+            'CG': { zone: 6, name: 'Congo', ru: 'Конго' },
+            'CD': { zone: 6, name: 'Congo, DPR', ru: 'ДР Конго' },
+            'CK': { zone: 6, name: 'Cook Islands', ru: 'Острова Кука' },
+            'CR': { zone: 6, name: 'Costa Rica', ru: 'Коста-Рика' },
+            'CI': { zone: 6, name: "Cote D'Ivoire", ru: "Кот-д'Ивуар" },
+            'HR': { zone: 3, name: 'Croatia', ru: 'Хорватия' },
+            'CU': { zone: 6, name: 'Cuba', ru: 'Куба' },
+            'XC': { zone: 6, name: 'Curacao', ru: 'Кюрасао' },
+            'CY': { zone: 3, name: 'Cyprus', ru: 'Кипр' },
+            'CZ': { zone: 2, name: 'Czech Rep., The', ru: 'Чехия' },
+            'DK': { zone: 3, name: 'Denmark', ru: 'Дания' },
+            'DJ': { zone: 6, name: 'Djibouti', ru: 'Джибути' },
+            'DM': { zone: 6, name: 'Dominica', ru: 'Доминика' },
+            'DO': { zone: 6, name: 'Dominican Rep.', ru: 'Доминиканская Республика' },
+            'EC': { zone: 6, name: 'Ecuador', ru: 'Эквадор' },
+            'EG': { zone: 6, name: 'Egypt', ru: 'Египет' },
+            'SV': { zone: 6, name: 'El Salvador', ru: 'Сальвадор' },
+            'ER': { zone: 6, name: 'Eritrea', ru: 'Эритрея' },
+            'EE': { zone: 2, name: 'Estonia', ru: 'Эстония' },
+            'SZ': { zone: 6, name: 'Eswatini', ru: 'Эсватини' },
+            'ET': { zone: 6, name: 'Ethiopia', ru: 'Эфиопия' },
+            'FK': { zone: 6, name: 'Falkland Islands', ru: 'Фолклендские о-ва' },
+            'FO': { zone: 6, name: 'Faroe Islands', ru: 'Фарерские о-ва' },
+            'FJ': { zone: 6, name: 'Fiji', ru: 'Фиджи' },
+            'FI': { zone: 2, name: 'Finland', ru: 'Финляндия' },
+            'FR': { zone: 2, name: 'France', ru: 'Франция' },
+            'GF': { zone: 6, name: 'French Guyana', ru: 'Французская Гвиана' },
+            'GA': { zone: 6, name: 'Gabon', ru: 'Габон' },
+            'GM': { zone: 6, name: 'Gambia', ru: 'Гамбия' },
+            'GE': { zone: 2, name: 'Georgia', ru: 'Грузия' },
+            'DE': { zone: 2, name: 'Germany', ru: 'Германия' },
+            'GH': { zone: 6, name: 'Ghana', ru: 'Гана' },
+            'GI': { zone: 3, name: 'Gibraltar', ru: 'Гибралтар' },
+            'GR': { zone: 3, name: 'Greece', ru: 'Греция' },
+            'GL': { zone: 6, name: 'Greenland', ru: 'Гренландия' },
+            'GD': { zone: 6, name: 'Grenada', ru: 'Гренада' },
+            'GP': { zone: 6, name: 'Guadeloupe', ru: 'Гваделупа' },
+            'GU': { zone: 6, name: 'Guam', ru: 'Гуам' },
+            'GT': { zone: 6, name: 'Guatemala', ru: 'Гватемала' },
+            'GG': { zone: 3, name: 'Guernsey', ru: 'Гернси' },
+            'GN': { zone: 6, name: 'Guinea Rep.', ru: 'Гвинея' },
+            'GW': { zone: 6, name: 'Guinea-Bissau', ru: 'Гвинея-Бисау' },
+            'GQ': { zone: 6, name: 'Guinea-Equatorial', ru: 'Экваториальная Гвинея' },
+            'GY': { zone: 6, name: 'Guyana (British)', ru: 'Гайана' },
+            'HT': { zone: 6, name: 'Haiti', ru: 'Гаити' },
+            'HN': { zone: 6, name: 'Honduras', ru: 'Гондурас' },
+            'HK': { zone: 5, name: 'Hong Kong SAR China', ru: 'Гонконг' },
+            'HU': { zone: 2, name: 'Hungary', ru: 'Венгрия' },
+            'IS': { zone: 6, name: 'Iceland', ru: 'Исландия' },
+            'IN': { zone: 5, name: 'India', ru: 'Индия' },
+            'ID': { zone: 5, name: 'Indonesia', ru: 'Индонезия' },
+            'IR': { zone: 6, name: 'Iran', ru: 'Иран' },
+            'IE': { zone: 3, name: 'Ireland, Rep. Of', ru: 'Ирландия' },
+            'IL': { zone: 6, name: 'Israel', ru: 'Израиль' },
+            'IT': { zone: 2, name: 'Italy', ru: 'Италия' },
+            'JM': { zone: 6, name: 'Jamaica', ru: 'Ямайка' },
+            'JP': { zone: 5, name: 'Japan', ru: 'Япония' },
+            'JE': { zone: 3, name: 'Jersey', ru: 'Джерси' },
+            'JO': { zone: 6, name: 'Jordan', ru: 'Иордания' },
+            'KZ': { zone: 1, name: 'Kazakhstan', ru: 'Казахстан' },
+            'KE': { zone: 6, name: 'Kenya', ru: 'Кения' },
+            'KI': { zone: 6, name: 'Kiribati', ru: 'Кирибати' },
+            'KR': { zone: 5, name: 'Korea, Rep. Of', ru: 'Южная Корея' },
+            'KV': { zone: 3, name: 'Kosovo', ru: 'Косово' },
+            'KW': { zone: 6, name: 'Kuwait', ru: 'Кувейт' },
+            'LA': { zone: 5, name: 'Laos', ru: 'Лаос' },
+            'LV': { zone: 2, name: 'Latvia', ru: 'Латвия' },
+            'LB': { zone: 6, name: 'Lebanon', ru: 'Ливан' },
+            'LS': { zone: 6, name: 'Lesotho', ru: 'Лесото' },
+            'LR': { zone: 6, name: 'Liberia', ru: 'Либерия' },
+            'LY': { zone: 6, name: 'Libya', ru: 'Ливия' },
+            'LI': { zone: 2, name: 'Liechtenstein', ru: 'Лихтенштейн' },
+            'LT': { zone: 2, name: 'Lithuania', ru: 'Литва' },
+            'LU': { zone: 3, name: 'Luxembourg', ru: 'Люксембург' },
+            'MO': { zone: 5, name: 'Macau SAR China', ru: 'Макао' },
+            'MG': { zone: 6, name: 'Madagascar', ru: 'Мадагаскар' },
+            'MW': { zone: 6, name: 'Malawi', ru: 'Малави' },
+            'MY': { zone: 5, name: 'Malaysia', ru: 'Малайзия' },
+            'MV': { zone: 6, name: 'Maldives', ru: 'Мальдивы' },
+            'ML': { zone: 6, name: 'Mali', ru: 'Мали' },
+            'MT': { zone: 3, name: 'Malta', ru: 'Мальта' },
+            'MH': { zone: 6, name: 'Marshall Islands', ru: 'Маршалловы о-ва' },
+            'MQ': { zone: 6, name: 'Martinique', ru: 'Мартиника' },
+            'MR': { zone: 6, name: 'Mauritania', ru: 'Мавритания' },
+            'MU': { zone: 6, name: 'Mauritius', ru: 'Маврикий' },
+            'YT': { zone: 6, name: 'Mayotte', ru: 'Майотта' },
+            'MX': { zone: 6, name: 'Mexico', ru: 'Мексика' },
+            'FM': { zone: 6, name: 'Micronesia', ru: 'Микронезия' },
+            'MD': { zone: 2, name: 'Moldova, Rep. Of', ru: 'Молдова' },
+            'MC': { zone: 2, name: 'Monaco', ru: 'Монако' },
+            'MN': { zone: 5, name: 'Mongolia', ru: 'Монголия' },
+            'ME': { zone: 3, name: 'Montenegro, Rep Of', ru: 'Черногория' },
+            'MS': { zone: 6, name: 'Montserrat', ru: 'Монтсеррат' },
+            'MA': { zone: 6, name: 'Morocco', ru: 'Марокко' },
+            'MZ': { zone: 6, name: 'Mozambique', ru: 'Мозамбик' },
+            'MM': { zone: 5, name: 'Myanmar', ru: 'Мьянма' },
+            'NA': { zone: 6, name: 'Namibia', ru: 'Намибия' },
+            'NR': { zone: 6, name: 'Nauru, Rep. Of', ru: 'Науру' },
+            'NP': { zone: 5, name: 'Nepal', ru: 'Непал' },
+            'NL': { zone: 2, name: 'Netherlands, The', ru: 'Нидерланды' },
+            'XN': { zone: 6, name: 'Nevis', ru: 'Невис' },
+            'NC': { zone: 6, name: 'New Caledonia', ru: 'Новая Каледония' },
+            'NZ': { zone: 6, name: 'New Zealand', ru: 'Новая Зеландия' },
+            'NI': { zone: 6, name: 'Nicaragua', ru: 'Никарагуа' },
+            'NE': { zone: 6, name: 'Niger', ru: 'Нигер' },
+            'NG': { zone: 6, name: 'Nigeria', ru: 'Нигерия' },
+            'NU': { zone: 6, name: 'Niue', ru: 'Ниуэ' },
+            'MK': { zone: 3, name: 'North Macedonia', ru: 'Северная Македония' },
+            'MP': { zone: 6, name: 'Northern Mariana Islands', ru: 'Северные Марианские о-ва' },
+            'NO': { zone: 3, name: 'Norway', ru: 'Норвегия' },
+            'OM': { zone: 6, name: 'Oman', ru: 'Оман' },
+            'PK': { zone: 6, name: 'Pakistan', ru: 'Пакистан' },
+            'PW': { zone: 6, name: 'Palau', ru: 'Палау' },
+            'PA': { zone: 6, name: 'Panama', ru: 'Панама' },
+            'PG': { zone: 6, name: 'Papua New Guinea', ru: 'Папуа — Новая Гвинея' },
+            'PY': { zone: 6, name: 'Paraguay', ru: 'Парагвай' },
+            'PE': { zone: 6, name: 'Peru', ru: 'Перу' },
+            'PH': { zone: 5, name: 'Philippines, The', ru: 'Филиппины' },
+            'PL': { zone: 2, name: 'Poland', ru: 'Польша' },
+            'PT': { zone: 3, name: 'Portugal', ru: 'Португалия' },
+            'PR': { zone: 6, name: 'Puerto Rico', ru: 'Пуэрто-Рико' },
+            'QA': { zone: 6, name: 'Qatar', ru: 'Катар' },
+            'RE': { zone: 6, name: 'Reunion, Island Of', ru: 'Реюньон' },
+            'RO': { zone: 3, name: 'Romania', ru: 'Румыния' },
+            'RW': { zone: 6, name: 'Rwanda', ru: 'Руанда' },
+            'SH': { zone: 6, name: 'Saint Helena', ru: 'Остров Святой Елены' },
+            'WS': { zone: 6, name: 'Samoa', ru: 'Самоа' },
+            'SM': { zone: 2, name: 'San Marino', ru: 'Сан-Марино' },
+            'ST': { zone: 6, name: 'Sao Tome And Principe', ru: 'Сан-Томе и Принсипи' },
+            'SA': { zone: 6, name: 'Saudi Arabia', ru: 'Саудовская Аравия' },
+            'SN': { zone: 6, name: 'Senegal', ru: 'Сенегал' },
+            'RS': { zone: 3, name: 'Serbia, Rep. Of', ru: 'Сербия' },
+            'SC': { zone: 6, name: 'Seychelles', ru: 'Сейшелы' },
+            'SL': { zone: 6, name: 'Sierra Leone', ru: 'Сьерра-Леоне' },
+            'SG': { zone: 5, name: 'Singapore', ru: 'Сингапур' },
+            'SK': { zone: 3, name: 'Slovakia', ru: 'Словакия' },
+            'SI': { zone: 3, name: 'Slovenia', ru: 'Словения' },
+            'SB': { zone: 6, name: 'Solomon Islands', ru: 'Соломоновы Острова' },
+            'SO': { zone: 6, name: 'Somalia', ru: 'Сомали' },
+            'XS': { zone: 6, name: 'Somaliland, Rep Of', ru: 'Сомалиленд' },
+            'ZA': { zone: 6, name: 'South Africa', ru: 'ЮАР (Южная Африка)' },
+            'SS': { zone: 6, name: 'South Sudan', ru: 'Южный Судан' },
+            'ES': { zone: 3, name: 'Spain', ru: 'Испания' },
+            'LK': { zone: 5, name: 'Sri Lanka', ru: 'Шри-Ланка' },
+            'XY': { zone: 6, name: 'St. Barthelemy', ru: 'Сен-Бартелеми' },
+            'XE': { zone: 6, name: 'St. Eustatius', ru: 'Синт-Эстатиус' },
+            'KN': { zone: 6, name: 'St. Kitts', ru: 'Сент-Китс и Невис' },
+            'LC': { zone: 6, name: 'St. Lucia', ru: 'Сент-Люсия' },
+            'XM': { zone: 6, name: 'St. Maarten', ru: 'Синт-Мартен' },
+            'VC': { zone: 6, name: 'St. Vincent', ru: 'Сент-Винсент и Гренадины' },
+            'SD': { zone: 6, name: 'Sudan', ru: 'Судан' },
+            'SR': { zone: 6, name: 'Suriname', ru: 'Суринам' },
+            'SE': { zone: 3, name: 'Sweden', ru: 'Швеция' },
+            'CH': { zone: 2, name: 'Switzerland', ru: 'Швейцария' },
+            'SY': { zone: 6, name: 'Syria', ru: 'Сирия' },
+            'PF': { zone: 6, name: 'Tahiti', ru: 'Таити' },
+            'TW': { zone: 5, name: 'Taiwan', ru: 'Тайвань' },
+            'TJ': { zone: 1, name: 'Tajikistan', ru: 'Таджикистан' },
+            'TZ': { zone: 6, name: 'Tanzania', ru: 'Танзания' },
+            'TH': { zone: 5, name: 'Thailand', ru: 'Таиланд' },
+            'TL': { zone: 6, name: 'Timor-Leste', ru: 'Восточный Тимор' },
+            'TG': { zone: 6, name: 'Togo', ru: 'Того' },
+            'TO': { zone: 6, name: 'Tonga', ru: 'Тонга' },
+            'TT': { zone: 6, name: 'Trinidad And Tobago', ru: 'Тринидад и Тобаго' },
+            'TN': { zone: 6, name: 'Tunisia', ru: 'Тунис' },
+            'TR': { zone: 2, name: 'Turkey', ru: 'Турция' },
+            'TM': { zone: 6, name: 'Turkmenistan', ru: 'Туркменистан' },
+            'TC': { zone: 6, name: 'Turks & Caicos', ru: 'Теркс и Кайкос' },
+            'TV': { zone: 6, name: 'Tuvalu', ru: 'Тувалу' },
+            'US': { zone: 4, name: 'USA', ru: 'США' },
+            'UG': { zone: 6, name: 'Uganda', ru: 'Уганда' },
+            'UA': { zone: 2, name: 'Ukraine', ru: 'Украина' },
+            'AE': { zone: 3, name: 'United Arab Emirates', ru: 'ОАЭ' },
+            'GB': { zone: 3, name: 'United Kingdom', ru: 'Великобритания' },
+            'UY': { zone: 6, name: 'Uruguay', ru: 'Уругвай' },
+            'UZ': { zone: 1, name: 'Uzbekistan', ru: 'Узбекистан' },
+            'VU': { zone: 6, name: 'Vanuatu', ru: 'Вануату' },
+            'VA': { zone: 2, name: 'Vatican City', ru: 'Ватикан' },
+            'VE': { zone: 6, name: 'Venezuela', ru: 'Венесуэла' },
+            'VN': { zone: 5, name: 'Vietnam', ru: 'Вьетнам' },
+            'VG': { zone: 6, name: 'Virgin Islands-British', ru: 'Виргинские о-ва (Брит.)' },
+            'VI': { zone: 6, name: 'Virgin Islands-US', ru: 'Виргинские о-ва (США)' },
+            'YE': { zone: 6, name: 'Yemen, Rep. Of', ru: 'Йемен' },
+            'ZM': { zone: 6, name: 'Zambia', ru: 'Замбия' },
+            'ZW': { zone: 6, name: 'Zimbabwe', ru: 'Зимбабве' }
+        };
+
+        const RISK_COUNTRIES = ['AF', 'IQ', 'SY', 'YE', 'LY', 'SO'];
+
+        const SURCHARGES_CONFIG = {
+            demandSurcharge: { name: 'Надбавка за спрос (Demand)', type: 'dynamic', rate: 0, isMain: true },
+            overweightPiece: { name: 'Массивный груз (>70кг)', type: 'per_piece', rate: 100, isMain: true },
+            heavyPiece: { name: 'Тяжелый груз (25-70кг)', type: 'per_piece', rate: 20, isMain: true },
+            oversizePiece: { name: 'Негабарит (>100/>80см)', type: 'per_piece', rate: 20, isMain: true },
+            nonStackable: { name: 'Нештабелируемый груз', type: 'per_piece', rate: 300, isMain: true },
+          nonStandardPack: { name: 'Нестандартная упаковка', type: 'per_piece', rate: 20, isMain: true },    
+          remoteArea: { name: 'Отдаленный район', type: 'dynamic', rate: 24, isMain: true },           
+          remoteAreaPickup: { name: 'Забор из отд. района (Импорт)', type: 'dynamic', rate: 24, isMain: true }, // НОВАЯ НАДБАВКА
+          addressCorrection: { name: 'Корректировка адреса', type: 'fixed', rate: 15, isMain: true },  
+          dutiesTaxes: { name: 'Оплата пошлин (DTP)', type: 'fixed', rate: 26 },
+          extendedLiability: { 
+      name: 'Расширенная ответственность', 
+      type: 'fixed', 
+      rate: 5 
+  },
+  verbalNotification: { 
+      name: 'Устное уведомление', 
+      type: 'fixed', 
+      rate: 5 
+  },
+  changeOfBilling: { 
+      name: 'Изменение плательщика', 
+      type: 'fixed', 
+      rate: 12 
+  },
+  dedicatedPickup: { 
+      name: 'Спец. забор груза', 
+      type: 'per_kg_with_min', 
+      rate: 0.5, 
+      min: 30 // Минимум 30 EUR
+  },
+  deliverySignature: { 
+      name: 'Копия подписи', 
+      type: 'fixed', 
+      rate: 5 
+  },
+  adultSignature: { 
+      name: 'Подпись взрослого', 
+      type: 'fixed', 
+      rate: 5 
+  },
+  directSignature: { 
+      name: 'Прямая подпись', 
+      type: 'fixed', 
+      rate: 5 
+  },
+  dedicatedDelivery: { 
+      name: 'Спец. доставка', 
+      type: 'per_kg_with_min', 
+      rate: 0.5, 
+      min: 40 // Минимум 40 EUR
+  },
+
+  // --- ТАМОЖЕННЫЕ УСЛУГИ ---
+  clearanceProcessing: { 
+      name: 'Таможенное оформление (Импорт)', 
+      type: 'fixed', 
+      rate: 10 
+  },
+  nonRoutineEntry: { 
+      name: 'Нестандартное оформление', 
+      type: 'fixed', 
+      rate: 45 
+  },
+  multilineEntry: { 
+      name: 'Многотоварное (>5 строк)', 
+      type: 'per_line_excess', 
+      rate: 5,
+      threshold: 5 // Бесплатно первые 5 строк
+  },
+  customsPhysical: { 
+      name: 'Физический досмотр', 
+      type: 'fixed', 
+      rate: 20 
+  },
+  permitsLicences: { 
+      name: 'Разрешения и лицензии', 
+      type: 'fixed', 
+      rate: 45 
+  },
+  bondedStorage: { 
+      name: 'Хранение СВХ', 
+      type: 'complex_storage', 
+      rate: 11, // База за накладную
+      rate_extra: 0.5, // За кг в день
+      free_days: 3
+  },
+  exportDeclaration: { 
+      name: 'Экспортная декларация', 
+      type: 'fixed', 
+      rate: 10 
+  },
+  postClearanceMod: { 
+      name: 'Пост-там. модификация', 
+      type: 'fixed', 
+      rate: 80 
+  },
+
+  // --- НАДБАВКИ (SURCHARGES) ---
+  elevatedRisk: { 
+      name: 'Повышенный риск (Страна)', 
+      type: 'fixed', 
+      rate: 30 
+  },
+  restrictedDestination: { 
+      name: 'Ограниченное направление (Санкции)', 
+      type: 'fixed', 
+      rate: 30 
+  },
+  dryIce: { 
+      name: 'Сухой лед (UN1845)', 
+      type: 'fixed', 
+      rate: 12 
+  },
+  lithiumIon: { 
+      name: 'Литий-ионные (PI966)', 
+      type: 'fixed', 
+      rate: 5 
+  },
+  lithiumMetal: { 
+      name: 'Литий-металл (PI969)', 
+      type: 'fixed', 
+      rate: 5 
+  }
+        };
+
+        // КОНФИГУРАЦИЯ УПАКОВКИ (ОБНОВЛЕННАЯ)
+        const PACKAGING_CONFIG = {
+            woodenCrate: { name: 'Деревянный ящик', type: 'fixed', rate: 50 },
+            hardPlastic: { name: 'Жесткий пластик (тара)', type: 'fixed', rate: 20 },
+            metal: { name: 'Металлическая упаковка', type: 'fixed', rate: 20 },
+            polystyrene: { name: 'Пенопласт (полистирол)', type: 'fixed', rate: 20 },
+            handles: { name: 'Сумка с ручками', type: 'fixed', rate: 20 },
+            looselyStrapped: { name: 'Слабая обвязка груза', type: 'fixed', rate: 20 },
+            wheels: { name: 'Предмет на колесах', type: 'fixed', rate: 20 },
+            drum: { name: 'Бочка / Канистра', type: 'fixed', rate: 20 },
+            cylinder: { name: 'Цилиндр / Тубус', type: 'fixed', rate: 20 },
+            excessiveWrap: { name: 'Избыточная пленка', type: 'fixed', rate: 20 },
+            tires: { name: 'Шины (покрышки)', type: 'fixed', rate: 20 }
+        };
+
+        // ... (tables remain unchanged) ...
+        const EXPORT_ENVELOPE = [[0.3, 59.24, 76.85, 88.05, 89.66, 100.88, 132.89]];
+       
+        const EXPORT_DOCS_SMALL = [
+          [0.5, 67.57, 84.07, 95.15, 98.55, 111.55, 137.99],
+          [1.0, 83.58, 103.29, 117.57, 120.97, 133.97, 168.42],
+          [1.5, 93.18, 117.70, 135.19, 138.59, 151.59, 192.45],
+          [2.0, 102.78, 132.11, 152.80, 156.20, 169.20, 216.48]
+        ];
+
+        const EXPORT_MAIN_TABLE = [
+             [0.5, 73.39, 90.34, 104.07, 109.63, 121.20, 147.75],
+    [1.0, 91.00, 113.50, 129.69, 136.22, 146.82, 182.34],
+    [1.5, 102.21, 128.94, 148.91, 155.97, 166.04, 209.07],
+    [2.0, 113.41, 144.38, 168.13, 175.73, 185.26, 235.80],
+    [2.5, 124.63, 159.81, 187.36, 195.47, 204.48, 262.52],
+    [3.0, 131.06, 170.71, 201.77, 210.15, 222.25, 285.89],
+    [3.5, 137.48, 181.61, 216.18, 224.83, 240.03, 309.26],
+    [4.0, 143.91, 192.51, 230.59, 239.51, 257.81, 332.63],
+    [4.5, 150.34, 203.40, 245.00, 254.18, 275.59, 356.00],
+    [5.0, 156.77, 214.30, 259.41, 268.86, 293.36, 379.37],
+    [5.5, 164.78, 223.64, 269.02, 280.19, 304.68, 396.50],
+    [6.0, 172.79, 232.99, 278.63, 291.52, 316.00, 413.63],
+    [6.5, 180.81, 242.33, 288.24, 302.85, 327.32, 430.76],
+    [7.0, 188.82, 251.67, 297.85, 314.18, 338.64, 447.89],
+    [7.5, 196.83, 261.01, 307.46, 325.51, 349.96, 465.01],
+    [8.0, 204.85, 270.35, 317.06, 336.84, 361.28, 482.14],
+    [8.5, 212.86, 279.70, 326.67, 348.17, 372.60, 499.27],
+    [9.0, 220.87, 289.04, 336.28, 359.50, 383.92, 516.40],
+    [9.5, 228.89, 298.38, 345.89, 370.83, 395.24, 533.53],
+    [10.0, 236.90, 307.72, 355.50, 382.16, 406.56, 550.66],
+    [10.5, 243.31, 315.52, 363.52, 390.32, 414.66, 564.68],
+    [11.0, 249.71, 323.32, 371.53, 398.48, 422.75, 578.70],
+    [11.5, 256.12, 331.11, 379.54, 406.63, 430.85, 592.71],
+    [12.0, 262.53, 338.91, 387.56, 414.79, 438.94, 606.73],
+    [12.5, 268.93, 346.71, 395.57, 422.95, 447.04, 620.75],
+    [13.0, 275.34, 354.51, 403.58, 431.11, 455.14, 634.77],
+    [13.5, 281.75, 362.30, 411.60, 439.26, 463.23, 648.79],
+    [14.0, 288.15, 370.10, 419.61, 447.42, 471.33, 662.81],
+    [14.5, 294.56, 377.90, 427.63, 455.58, 479.42, 676.82],
+    [15.0, 300.97, 385.69, 435.64, 463.74, 487.52, 690.84],
+    [15.5, 307.37, 393.49, 443.65, 471.89, 495.62, 704.86],
+    [16.0, 313.78, 401.29, 451.67, 480.05, 503.71, 718.88],
+    [16.5, 320.19, 409.09, 459.68, 488.21, 511.81, 732.90],
+    [17.0, 326.59, 416.88, 467.69, 496.37, 519.90, 746.91],
+    [17.5, 333.00, 424.68, 475.71, 504.52, 528.00, 760.93],
+    [18.0, 339.41, 432.48, 483.72, 512.68, 536.09, 774.95],
+    [18.5, 345.81, 440.27, 491.73, 520.84, 544.19, 788.97],
+    [19.0, 352.22, 448.07, 499.75, 529.00, 552.29, 802.99],
+    [19.5, 358.63, 455.87, 507.76, 537.16, 560.38, 817.01],
+    [20.0, 365.03, 463.66, 515.77, 545.31, 568.48, 831.02],
+    [20.5, 369.83, 469.89, 523.79, 553.47, 576.65, 845.04],
+    [21.0, 374.63, 476.11, 531.80, 561.63, 584.81, 859.06],
+    [21.5, 379.43, 482.33, 539.81, 569.79, 592.98, 873.08],
+    [22.0, 384.23, 488.55, 547.83, 577.94, 601.15, 887.10],
+    [22.5, 389.03, 494.77, 555.84, 586.10, 609.32, 901.12],
+    [23.0, 393.83, 500.99, 563.85, 594.26, 617.49, 915.13],
+    [23.5, 398.63, 507.21, 571.87, 602.42, 625.65, 929.15],
+    [24.0, 403.43, 513.43, 579.88, 610.57, 633.82, 943.17],
+    [24.5, 408.23, 519.66, 587.89, 618.73, 641.99, 957.19],
+    [25.0, 413.03, 525.88, 595.91, 626.89, 650.16, 971.21],
+    [25.5, 417.83, 532.10, 603.92, 635.05, 658.32, 985.23],
+    [26.0, 422.63, 538.32, 611.93, 643.20, 666.49, 999.24],
+    [26.5, 427.43, 544.54, 619.95, 651.36, 674.66, 1013.26],
+    [27.0, 432.23, 550.76, 627.96, 659.52, 682.83, 1027.28],
+    [27.5, 437.03, 556.98, 635.97, 667.68, 691.00, 1041.30],
+    [28.0, 441.83, 563.20, 643.99, 675.83, 699.16, 1055.32],
+    [28.5, 446.63, 569.43, 652.00, 683.99, 707.33, 1069.34],
+    [29.0, 451.43, 575.65, 660.01, 692.15, 715.50, 1083.35],
+    [29.5, 456.23, 581.87, 668.03, 700.31, 723.67, 1097.37],
+    [30.0, 461.03, 588.09, 676.04, 708.46, 731.84, 1111.39],
+    [31.0, 470.64, 600.48, 688.77, 721.67, 747.73, 1136.31],
+    [32.0, 480.25, 612.87, 701.50, 734.87, 763.62, 1161.22],
+    [33.0, 489.86, 625.26, 714.23, 748.08, 779.51, 1186.14],
+    [34.0, 499.47, 637.65, 726.96, 761.28, 795.41, 1211.05],
+    [35.0, 509.08, 650.04, 739.69, 774.49, 811.30, 1235.97],
+    [36.0, 518.69, 662.43, 752.43, 787.69, 827.19, 1260.88],
+    [37.0, 528.30, 674.83, 765.16, 800.90, 843.09, 1285.80],
+    [38.0, 537.91, 687.22, 777.89, 814.10, 858.98, 1310.72],
+    [39.0, 547.52, 699.61, 790.62, 827.31, 874.87, 1335.63],
+    [40.0, 557.13, 712.00, 803.35, 840.51, 890.76, 1360.55],
+    [41.0, 566.74, 724.39, 816.08, 853.72, 906.66, 1385.46],
+    [42.0, 576.35, 736.78, 828.81, 866.92, 922.55, 1410.38],
+    [43.0, 585.96, 749.17, 841.54, 880.12, 938.44, 1435.29],
+    [44.0, 595.57, 761.56, 854.27, 893.33, 954.34, 1460.21],
+    [45.0, 605.18, 773.95, 867.00, 906.53, 970.23, 1485.13],
+    [46.0, 614.79, 786.34, 879.73, 919.74, 986.12, 1510.04],
+    [47.0, 624.40, 798.73, 892.46, 932.94, 1002.01, 1534.96],
+    [48.0, 634.01, 811.13, 905.19, 946.15, 1017.91, 1559.87],
+    [49.0, 643.62, 823.52, 917.93, 959.35, 1033.80, 1584.79],
+    [50.0, 653.23, 835.91, 930.66, 972.56, 1049.69, 1609.70],
+    [51.0, 662.84, 848.30, 943.39, 985.76, 1065.59, 1634.62],
+    [52.0, 672.45, 860.69, 956.12, 998.97, 1081.48, 1659.54],
+    [53.0, 682.06, 873.08, 968.85, 1012.17, 1097.37, 1684.45],
+    [54.0, 691.67, 885.47, 981.58, 1025.38, 1113.27, 1709.37],
+    [55.0, 701.28, 897.86, 994.31, 1038.58, 1129.16, 1734.28],
+    [56.0, 710.89, 910.25, 1007.04, 1051.78, 1145.05, 1759.20],
+    [57.0, 720.50, 922.64, 1019.77, 1064.99, 1160.94, 1784.11],
+    [58.0, 730.11, 935.03, 1032.50, 1078.19, 1176.84, 1809.03],
+    [59.0, 739.72, 947.42, 1045.23, 1091.40, 1192.73, 1833.95],
+    [60.0, 749.33, 959.82, 1057.96, 1104.60, 1208.62, 1858.86],
+    [61.0, 758.93, 972.21, 1070.70, 1117.81, 1224.52, 1883.78],
+    [62.0, 768.54, 984.60, 1083.43, 1131.01, 1240.41, 1908.69],
+    [63.0, 778.15, 996.99, 1096.16, 1144.22, 1256.30, 1933.61],
+    [64.0, 787.76, 1009.38, 1108.89, 1157.42, 1272.19, 1958.52],
+    [65.0, 797.37, 1021.77, 1121.62, 1170.63, 1288.09, 1983.44],
+    [66.0, 806.98, 1034.16, 1134.35, 1183.83, 1303.98, 2008.36],
+    [67.0, 816.59, 1046.55, 1147.08, 1197.04, 1319.87, 2033.27],
+    [68.0, 826.20, 1058.94, 1159.81, 1210.24, 1335.77, 2058.19],
+    [69.0, 835.81, 1071.33, 1172.54, 1223.44, 1351.66, 2083.10],
+    [70.0, 845.42, 1083.72, 1185.27, 1236.65, 1367.55, 2108.02]
+        ];
+       
+        const EXPORT_OVERWEIGHT_MULTIPLIERS = [
+          [30.1, 70, 9.6099, 12.3909, 12.7308, 13.2046, 15.8929, 24.9157],
+             [70.1, 300, 9.6305, 10.2279, 12.9162, 13.5033, 13.1531, 23.0205],
+             [300.1, 999.99, 10.0425, 10.3309, 13.0398, 13.6269, 13.2767, 23.2574]
+        ];
+
+        const IMPORT_OVERWEIGHT_MULTIPLIERS = [
+            [30.1, 70, 9.82, 15.89, 16.04, 16.30, 19.21, 28.52],
+             [70.1, 300, 12.56, 12.56, 15.88, 16.15, 16.01, 25.37],
+             [300.1, 99999, 12.79, 12.79, 16.01, 16.15, 16.01, 25.84]
+        ];
+
+        const IMPORT_DOCS_SMALL = [
+           [0.5, 83.33, 106.88, 127.32, 121.69, 132.05, 166.62],
+          [1.0, 94.53, 121.29, 146.54, 141.09, 152.86, 192.24],
+          [1.5, 105.75, 137.31, 160.95, 160.48, 172.08, 221.05],
+          [2.0, 116.97, 153.33, 175.36, 179.88, 191.30, 249.86]
+        ];
+
+        const IMPORT_MAIN_TABLE = [
+            [0.5, 92.92, 116.84, 137.99, 132.08, 142.46, 175.86],
+    [1.0, 105.97, 134.29, 158.81, 154.92, 166.71, 206.29],
+    [1.5, 118.88, 153.32, 174.82, 175.92, 187.71, 236.68],
+    [2.0, 131.80, 172.34, 190.84, 196.93, 208.71, 267.08],
+    [2.5, 144.60, 191.36, 211.65, 217.93, 229.71, 297.51],
+    [3.0, 152.62, 204.04, 227.66, 235.71, 249.27, 326.05],
+    [3.5, 160.63, 216.72, 243.67, 253.48, 268.83, 354.59],
+    [4.0, 168.64, 229.40, 259.67, 271.26, 288.39, 383.13],
+    [4.5, 176.66, 242.08, 275.68, 289.04, 307.95, 411.67],
+    [5.0, 184.67, 254.76, 291.69, 306.82, 327.51, 440.21],
+    [5.5, 192.76, 265.87, 302.90, 319.74, 340.55, 459.24],
+    [6.0, 200.86, 276.99, 314.12, 332.67, 353.59, 478.26],
+    [6.5, 208.96, 288.10, 325.34, 345.60, 366.63, 497.28],
+    [7.0, 217.05, 299.22, 336.55, 358.52, 379.67, 516.31],
+    [7.5, 225.15, 310.33, 347.77, 371.45, 392.71, 535.33],
+    [8.0, 233.24, 321.44, 358.99, 384.38, 405.75, 554.36],
+    [8.5, 241.34, 332.56, 370.20, 397.30, 418.79, 573.38],
+    [9.0, 249.44, 343.67, 381.42, 410.23, 431.83, 592.40],
+    [9.5, 257.53, 354.78, 392.64, 423.15, 444.87, 611.43],
+    [10.0, 265.63, 365.90, 403.85, 436.08, 457.91, 630.45],
+    [10.5, 273.65, 373.84, 413.46, 445.78, 467.51, 647.90],
+    [11.0, 281.67, 381.78, 423.07, 455.49, 477.11, 665.35],
+    [11.5, 289.70, 389.72, 432.68, 465.19, 486.71, 682.80],
+    [12.0, 297.72, 397.66, 442.29, 474.89, 496.31, 700.25],
+    [12.5, 305.75, 405.60, 451.90, 484.59, 505.91, 717.69],
+    [13.0, 313.77, 413.55, 461.51, 494.30, 515.50, 735.14],
+    [13.5, 321.79, 421.49, 471.12, 504.00, 525.10, 752.59],
+    [14.0, 329.82, 429.43, 480.73, 513.70, 534.70, 770.04],
+    [14.5, 337.84, 437.37, 490.34, 523.40, 544.30, 787.49],
+    [15.0, 345.86, 445.31, 499.95, 533.11, 553.90, 804.93],
+    [15.5, 353.89, 453.25, 509.56, 542.81, 563.50, 822.38],
+    [16.0, 361.91, 461.19, 519.17, 552.51, 573.10, 839.83],
+    [16.5, 369.93, 469.13, 528.78, 562.22, 582.70, 857.28],
+    [17.0, 377.96, 477.08, 538.39, 571.92, 592.30, 874.73],
+    [17.5, 385.98, 485.02, 548.00, 581.62, 601.90, 892.18],
+    [18.0, 394.01, 492.96, 557.61, 591.32, 611.50, 909.62],
+    [18.5, 402.03, 500.90, 567.22, 601.03, 621.10, 927.07],
+    [19.0, 410.05, 508.84, 576.83, 610.73, 630.70, 944.52],
+    [19.5, 418.08, 516.78, 586.44, 620.43, 640.30, 961.97],
+    [20.0, 426.10, 524.72, 596.05, 630.13, 649.90, 979.42],
+    [20.5, 432.51, 532.66, 604.22, 638.29, 659.50, 996.86],
+    [21.0, 438.91, 540.61, 612.39, 646.45, 669.10, 1014.31],
+    [21.5, 445.32, 548.55, 620.55, 654.61, 678.70, 1031.76],
+    [22.0, 451.73, 556.49, 628.72, 662.76, 688.30, 1049.21],
+    [22.5, 458.13, 564.43, 636.89, 670.92, 697.90, 1066.66],
+    [23.0, 464.54, 572.37, 645.06, 679.08, 707.50, 1084.11],
+    [23.5, 470.95, 580.31, 653.23, 687.24, 717.10, 1101.55],
+    [24.0, 477.35, 588.25, 661.39, 695.39, 726.70, 1119.00],
+    [24.5, 483.76, 596.19, 669.56, 703.55, 736.30, 1136.45],
+    [25.0, 490.17, 604.14, 677.73, 711.71, 745.90, 1153.90],
+    [25.5, 496.57, 612.08, 685.90, 719.87, 755.49, 1171.35],
+    [26.0, 502.98, 620.02, 694.07, 728.02, 765.09, 1188.80],
+    [26.5, 509.39, 627.96, 702.23, 736.18, 774.69, 1206.24],
+    [27.0, 515.79, 635.90, 710.40, 744.34, 784.29, 1223.69],
+    [27.5, 522.20, 643.84, 718.57, 752.50, 793.89, 1241.14],
+    [28.0, 528.61, 651.78, 726.74, 760.66, 803.49, 1258.59],
+    [28.5, 535.01, 659.73, 734.91, 768.81, 813.09, 1276.04],
+    [29.0, 541.42, 667.67, 743.07, 776.97, 822.69, 1293.48],
+    [29.5, 547.83, 675.61, 751.24, 785.13, 832.29, 1310.93],
+    [30.0, 554.23, 683.55, 759.41, 793.29, 841.89, 1328.38],
+    [31.0, 470.64, 600.48, 688.77, 721.67, 747.73, 1136.31],
+    [32.0, 480.25, 612.87, 701.50, 734.87, 763.62, 1161.22],
+    [33.0, 489.86, 625.26, 714.23, 748.08, 779.51, 1186.14],
+    [34.0, 499.47, 637.65, 726.96, 761.28, 795.41, 1211.05],
+    [35.0, 509.08, 650.04, 739.69, 774.49, 811.30, 1235.97],
+    [36.0, 518.69, 662.43, 752.43, 787.69, 827.19, 1260.88],
+    [37.0, 528.30, 674.83, 765.16, 800.90, 843.09, 1285.80],
+    [38.0, 537.91, 687.22, 777.89, 814.10, 858.98, 1310.72],
+    [39.0, 547.52, 699.61, 790.62, 827.31, 874.87, 1335.63],
+    [40.0, 557.13, 712.00, 803.35, 840.51, 890.76, 1360.55],
+    [41.0, 566.74, 724.39, 816.08, 853.72, 906.66, 1385.46],
+    [42.0, 576.35, 736.78, 828.81, 866.92, 922.55, 1410.38],
+    [43.0, 585.96, 749.17, 841.54, 880.12, 938.44, 1435.29],
+    [44.0, 595.57, 761.56, 854.27, 893.33, 954.34, 1460.21],
+    [45.0, 605.18, 773.95, 867.00, 906.53, 970.23, 1485.13],
+    [46.0, 614.79, 786.34, 879.73, 919.74, 986.12, 1510.04],
+    [47.0, 624.40, 798.73, 892.46, 932.94, 1002.01, 1534.96],
+    [48.0, 634.01, 811.13, 905.19, 946.15, 1017.91, 1559.87],
+    [49.0, 643.62, 823.52, 917.93, 959.35, 1033.80, 1584.79],
+    [50.0, 653.23, 835.91, 930.66, 972.56, 1049.69, 1609.70],
+    [51.0, 662.84, 848.30, 943.39, 985.76, 1065.59, 1634.62],
+    [52.0, 672.45, 860.69, 956.12, 998.97, 1081.48, 1659.54],
+    [53.0, 682.06, 873.08, 968.85, 1012.17, 1097.37, 1684.45],
+    [54.0, 691.67, 885.47, 981.58, 1025.38, 1113.27, 1709.37],
+    [55.0, 701.28, 897.86, 994.31, 1038.58, 1129.16, 1734.28],
+    [56.0, 809.45, 1096.76, 1176.37, 1217.21, 1341.34, 2069.92],
+    [57.0, 819.26, 1112.66, 1192.41, 1233.52, 1360.55, 2098.44],
+    [58.0, 829.08, 1128.55, 1208.45, 1249.82, 1379.76, 2126.96],
+    [59.0, 838.89, 1144.44, 1224.48, 1266.13, 1398.97, 2155.48],
+    [60.0, 848.71, 1160.34, 1240.52, 1282.43, 1418.18, 2184.00],
+    [61.0, 858.53, 1176.23, 1256.56, 1298.74, 1437.39, 2212.52],
+    [62.0, 868.34, 1192.12, 1272.60, 1315.04, 1456.60, 2241.04],
+    [63.0, 878.16, 1208.01, 1288.63, 1331.35, 1475.80, 2269.56],
+    [64.0, 887.97, 1223.91, 1304.67, 1347.65, 1495.01, 2298.08],
+    [65.0, 897.79, 1239.80, 1320.71, 1363.96, 1514.22, 2326.61],
+    [66.0, 907.61, 1255.69, 1336.74, 1380.26, 1533.43, 2355.13],
+    [67.0, 917.42, 1271.59, 1352.78, 1396.57, 1552.64, 2383.65],
+    [68.0, 927.24, 1287.48, 1368.82, 1412.87, 1571.85, 2412.17],
+    [69.0, 937.05, 1303.37, 1384.86, 1429.18, 1591.06, 2440.69],
+    [70.0, 946.87, 1319.27, 1400.89, 1445.48, 1610.27, 2469.21]
+        ];
+
+        // --- STATE MANAGEMENT ---
+        let state = {
+            direction: 'export',
+            type: 'doc',
+            country: '',
+            pieces: [{ id: Date.now(), weight: '', length: '', width: '', height: '' }],
+            discountPercent: '',
+            extraChargesInput: '',
+            selectedSurcharges: { demandSurcharge: { active: true, qty: 1 } },
+            selectedPackaging: {}, // НОВОЕ: Состояние упаковки
+            isSurchargesOpen: false,
+            isPackagingOpen: false, // НОВОЕ: Состояние меню упаковки
+            settings: {
+                fuelSurcharge: 34.5,
+                nsp: 14,
+                eurToKgs: 107.5,
+                usdToKgs: 102.5,
+                demandDoc: 0.4,
+                demandGoods: 0.8,
+                dtp: 26 // Добавлено значение по умолчанию для DTP
+            },
+            weightUnit: 'kg',
+            dimUnit: 'cm',
+            storageWeight: 5,
+            storageStart: '',
+            storageEnd: '',
+            // Новое поле для хранения истории
+            history: [],
+            // Временное хранение последнего результата
+            lastResult: null
+        };
+
+        // --- DOM ELEMENTS ---
+        const btnExport = document.getElementById('btn-export');
+        const btnImport = document.getElementById('btn-import');
+        const btnStorage = document.getElementById('btn-storage');
+        const dirPill = document.getElementById('dir-pill');
+       
+        const mainCalculatorForm = document.getElementById('main-calculator-form');
+        const storageCalculatorForm = document.getElementById('storage-calculator-form');
+       
+        const btnTypeDoc = document.getElementById('btn-type-doc');
+        const btnTypeGoods = document.getElementById('btn-type-goods');
+        const docMinLabel = document.getElementById('doc-min-label');
+       
+        const countryTrigger = document.getElementById('country-trigger');
+        const countryDropdown = document.getElementById('country-dropdown');
+        const countrySearch = document.getElementById('country-search');
+        const countryList = document.getElementById('country-list');
+        const selectedCountryName = document.getElementById('selected-country-name');
+       
+        const piecesContainer = document.getElementById('pieces-container');
+        const totalPiecesBadge = document.getElementById('total-pieces-badge');
+       
+        const surchargesHeader = document.getElementById('surcharges-header');
+        const surchargesList = document.getElementById('surcharges-list');
+        const surchargesChevron = document.getElementById('surcharges-chevron');
+        const surchargesPlusIcon = document.getElementById('surcharges-plus-icon');
+
+        const packagingHeader = document.getElementById('packaging-header'); // НОВОЕ
+        const packagingList = document.getElementById('packaging-list'); // НОВОЕ
+        const packagingChevron = document.getElementById('packaging-chevron'); // НОВОЕ
+        const packagingIconWrapper = document.getElementById('packaging-icon-wrapper'); // НОВОЕ
+       
+        const discountInput = document.getElementById('discount-input');
+        const extraChargesInput = document.getElementById('extra-charges-input');
+       
+        const docIconContainer = document.getElementById('doc-icon-container');
+        const goodsIconContainer = document.getElementById('goods-icon-container');
+
+        const discountBlock = document.getElementById('discount-block');
+        const extraChargesBlock = document.getElementById('extra-charges-block');
+
+        const discountIcon = document.getElementById('discount-icon');
+        const extraChargesIcon = document.getElementById('extra-charges-icon');
+
+        const extraCurrencySymbol = document.getElementById('extra-currency-symbol');
+       
+        const resultsContent = document.getElementById('results-content');
+       
+        const storageWeightInput = document.getElementById('storage-weight');
+        const storageStartInput = document.getElementById('storage-start');
+        const storageEndInput = document.getElementById('storage-end');
+       
+        const settingsModal = document.getElementById('settings-modal');
+        // Обновлен ID кнопки
+        const openSettingsBtn = document.getElementById('open-settings-btn');
+        const closeSettingsBtn = document.getElementById('close-settings');
+        const saveSettingsBtn = document.getElementById('save-settings');
+        const settingFuel = document.getElementById('setting-fuel');
+        const settingNsp = document.getElementById('setting-nsp');
+        const settingEur = document.getElementById('setting-eur');
+        const settingUsd = document.getElementById('setting-usd');
+        const settingDemandDoc = document.getElementById('setting-demand-doc');
+        const settingDemandGoods = document.getElementById('setting-demand-goods');
+        const settingDtp = document.getElementById('setting-dtp'); // Ссылка на input DTP
+
+        // Элементы истории
+        const historyModal = document.getElementById('history-modal');
+        const openHistoryBtn = document.getElementById('open-history-btn');
+        const closeHistoryBtn = document.getElementById('close-history');
+        const historyListEl = document.getElementById('history-list');
+        const historyCountBadge = document.getElementById('history-count-badge');
+
+        // --- INITIALIZATION ---
+        function init() {
+            // Load settings from LocalStorage
+            const savedSettings = localStorage.getItem('dhlCalcSettingsJS');
+            if (savedSettings) {
+                try {
+                    state.settings = { ...state.settings, ...JSON.parse(savedSettings) };
+                } catch(e) {}
+            }
+
+            // Load History from LocalStorage
+            const savedHistory = localStorage.getItem('dhlCalcHistory');
+            if (savedHistory) {
+                try {
+                    state.history = JSON.parse(savedHistory);
+                    updateHistoryBadge();
+                } catch(e) { state.history = []; }
+            }
+           
+            // Set default dates for storage
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            state.storageStart = today.toISOString().split('T')[0];
+            state.storageEnd = tomorrow.toISOString().split('T')[0];
+           
+            if(storageWeightInput) storageWeightInput.value = state.storageWeight;
+            if(storageStartInput) storageStartInput.value = state.storageStart;
+            if(storageEndInput) storageEndInput.value = state.storageEnd;
+
+            // Generate Surcharges List
+            renderSurcharges();
+            renderPackaging(); // НОВОЕ: Рендер упаковки
+            renderPieces();
+            updateUI();
+           
+            // Event Listeners
+            countryTrigger.addEventListener('click', toggleCountryDropdown);
+            countrySearch.addEventListener('input', filterCountries);
+            document.addEventListener('click', (e) => {
+                if (!document.getElementById('country-wrapper').contains(e.target)) {
+                    countryDropdown.classList.add('hidden', 'opacity-0', 'scale-95');
+                }
+            });
+
+            surchargesHeader.addEventListener('click', toggleSurcharges);
+            packagingHeader.addEventListener('click', togglePackagingSection); // НОВОЕ
+           
+            // Discount Input Listener for Animation & Calc
+            discountInput.addEventListener('input', (e) => { state.discountPercent = e.target.value; calculate(); });
+           
+            const triggerDiscountAnim = () => {
+                discountIcon.classList.remove('animate-jump');
+                setTimeout(() => {
+                    discountIcon.classList.add('animate-jump');
+                }, 10);
+                discountInput.focus();
+            };
+           
+            discountBlock.addEventListener('click', (e) => {
+                triggerDiscountAnim();
+            });
+
+            // Extra Charges Listener for Animation & Calc
+            extraChargesInput.addEventListener('input', (e) => { state.extraChargesInput = e.target.value; calculate(); });
+           
+            const triggerExtraAnim = () => {
+                extraChargesIcon.classList.remove('animate-spin-once');
+                setTimeout(() => {
+                     extraChargesIcon.classList.add('animate-spin-once');
+                }, 10);
+                extraChargesInput.focus();
+            };
+           
+            extraChargesBlock.addEventListener('click', (e) => {
+                triggerExtraAnim();
+            });
+
+            // Storage Listeners
+            storageWeightInput.addEventListener('input', (e) => { state.storageWeight = parseFloat(e.target.value) || 0; calculate(); });
+            storageStartInput.addEventListener('change', (e) => { state.storageStart = e.target.value; calculate(); });
+            storageEndInput.addEventListener('change', (e) => { state.storageEnd = e.target.value; calculate(); });
+
+            // Settings Modal
+            openSettingsBtn.addEventListener('click', openSettings);
+            closeSettingsBtn.addEventListener('click', closeSettings);
+            saveSettingsBtn.addEventListener('click', saveSettings);
+
+            // History Modal
+            openHistoryBtn.addEventListener('click', openHistory);
+            closeHistoryBtn.addEventListener('click', closeHistory);
+           
+            // Snowfall
+            createSnowflakes();
+            
+            // Auto-fetch rates on init (optional, un-comment if needed)
+            // fetchNbkrRates();
+        }
+
+        // --- NBKR FETCH LOGIC ---
+        async function fetchNbkrRates() {
+            const btn = document.getElementById('btn-nbkr-update');
+            const originalContent = btn.innerHTML;
+            const statusEl = document.getElementById('nbkr-status');
+            
+            btn.innerHTML = '<span class="animate-spin">⌛</span> Загрузка...';
+            btn.disabled = true;
+            btn.classList.add('opacity-70', 'cursor-not-allowed');
+
+            try {
+                const targetUrl = 'https://www.nbkr.kg/XML/daily.xml';
+                let xmlText = null;
+
+                // Список прокси для перебора в случае ошибок
+                const proxies = [
+                    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}&t=${Date.now()}`,
+                    `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
+                ];
+
+                let lastError = null;
+
+                // Пытаемся получить данные через доступные прокси по очереди
+                for (const proxyUrl of proxies) {
+                    try {
+                        const response = await fetch(proxyUrl);
+                        if (response.ok) {
+                            xmlText = await response.text();
+                            break; // Успех, выходим из цикла
+                        }
+                    } catch (e) {
+                        console.warn(`Proxy attempt failed: ${proxyUrl}`, e);
+                        lastError = e;
+                    }
+                }
+
+                if (!xmlText) {
+                    throw new Error('Сервисы обновления недоступны. Пожалуйста, введите курс вручную.');
+                }
+                
+                // Парсинг XML
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+                
+                // Проверка на ошибки парсинга
+                const parserError = xmlDoc.getElementsByTagName("parsererror");
+                if (parserError.length > 0) {
+                    throw new Error('Ошибка обработки XML файла');
+                }
+
+                const currencies = xmlDoc.getElementsByTagName("Currency");
+                let foundUsd = false;
+                let foundEur = false;
+                
+                // Получаем дату из атрибута CurrencyRates
+                const ratesNode = xmlDoc.getElementsByTagName("CurrencyRates")[0];
+                const dateStr = ratesNode ? ratesNode.getAttribute("Date") : new Date().toLocaleDateString('ru-RU');
+
+                for (let i = 0; i < currencies.length; i++) {
+                    const iso = currencies[i].getAttribute("ISOCode");
+                    const valNode = currencies[i].getElementsByTagName("Value")[0];
+                    
+                    if (valNode && iso) {
+                        // ВАЖНО: trim() убирает лишние пробелы, replace меняет запятую на точку
+                        const rawVal = valNode.textContent.trim().replace(',', '.');
+                        const val = parseFloat(rawVal);
+                        
+                        if (!isNaN(val)) {
+                            if (iso === 'EUR') {
+                                state.settings.eurToKgs = val;
+                                document.getElementById('setting-eur').value = val;
+                                foundEur = true;
+                            } else if (iso === 'USD') {
+                                state.settings.usdToKgs = val;
+                                document.getElementById('setting-usd').value = val;
+                                foundUsd = true;
+                            }
+                        }
+                    }
+                }
+
+                if (foundUsd || foundEur) {
+                    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Успешно!';
+                    btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    btn.classList.add('bg-green-600', 'hover:bg-green-700');
+                    
+                    if (statusEl) {
+                        document.getElementById('nbkr-date').textContent = dateStr;
+                        statusEl.classList.remove('hidden');
+                    }
+                    
+                    // Сохраняем настройки и ПЕРЕСЧИТЫВАЕМ
+                    saveSettings(); // Эта функция вызывает calculate() внутри себя
+                    
+                    setTimeout(() => {
+                        btn.innerHTML = originalContent;
+                        btn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                        btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                    }, 3000);
+                } else {
+                    throw new Error('Валюты USD/EUR не найдены в файле НБКР');
+                }
+
+            } catch (error) {
+                console.error('Fetch NBKR Error:', error);
+                alert(`Не удалось обновить курсы.\n${error.message}`);
+                btn.innerHTML = originalContent;
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-70', 'cursor-not-allowed');
+            }
+        }
+
+        // --- HISTORY FUNCTIONS ---
+        window.openHistory = function() {
+            renderHistoryList();
+            historyModal.classList.remove('hidden');
+            setTimeout(() => historyModal.classList.remove('opacity-0'), 10);
+        }
+
+        window.closeHistory = function() {
+            historyModal.classList.add('opacity-0');
+            setTimeout(() => historyModal.classList.add('hidden'), 200);
+        }
+
+        window.saveCalculation = function() {
+            if (!state.lastResult) return;
+
+            const entry = {
+                id: Date.now(),
+                timestamp: new Date().toLocaleString('ru-RU'),
+                direction: state.direction,
+                // Сохраняем полное состояние для восстановления
+                stateSnapshot: JSON.parse(JSON.stringify({
+                    direction: state.direction,
+                    type: state.type,
+                    country: state.country,
+                    pieces: state.pieces,
+                    discountPercent: state.discountPercent,
+                    extraChargesInput: state.extraChargesInput,
+                    selectedSurcharges: state.selectedSurcharges,
+                    selectedPackaging: state.selectedPackaging, // Сохраняем упаковку
+                    settings: state.settings, // Сохраняем настройки курса на момент расчета
+                    storageWeight: state.storageWeight,
+                    storageStart: state.storageStart,
+                    storageEnd: state.storageEnd
+                })),
+                // Данные для отображения в списке
+                summary: {
+                    totalKgs: state.lastResult.finalKgs,
+                    weight: state.lastResult.finalWeight || state.lastResult.weight,
+                    countryName: state.lastResult.countryName || 'Хранение',
+                    type: state.direction === 'storage' ? 'Хранение' : (state.type === 'doc' ? 'Документы' : 'Посылка')
+                }
+            };
+
+            state.history.unshift(entry); // Добавляем в начало
+            localStorage.setItem('dhlCalcHistory', JSON.stringify(state.history));
+            updateHistoryBadge();
+           
+            // Визуальное подтверждение на кнопке
+            const btn = document.getElementById('save-calc-btn');
+            if(btn) {
+                const originalContent = btn.innerHTML;
+                btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Сохранено`;
+                btn.classList.add('bg-green-600', 'border-green-600');
+                btn.classList.remove('bg-blue-600', 'border-blue-600');
+                setTimeout(() => {
+                    btn.innerHTML = originalContent;
+                    btn.classList.remove('bg-green-600', 'border-green-600');
+                    btn.classList.add('bg-blue-600', 'border-blue-600');
+                }, 2000);
+            }
+        }
+
+        window.loadHistoryItem = function(id) {
+            const item = state.history.find(i => i.id === id);
+            if (!item) return;
+
+            // Восстанавливаем состояние
+            const snap = item.stateSnapshot;
+            state.direction = snap.direction;
+            state.type = snap.type;
+            state.country = snap.country;
+            state.pieces = snap.pieces;
+            state.discountPercent = snap.discountPercent;
+            state.extraChargesInput = snap.extraChargesInput;
+            state.selectedSurcharges = snap.selectedSurcharges;
+            state.selectedPackaging = snap.selectedPackaging || {}; // Восстанавливаем упаковку
+            state.settings = snap.settings;
+            state.storageWeight = snap.storageWeight;
+            state.storageStart = snap.storageStart;
+            state.storageEnd = snap.storageEnd;
+
+            // Обновляем UI Inputs
+            if (discountInput) discountInput.value = state.discountPercent;
+            if (extraChargesInput) extraChargesInput.value = state.extraChargesInput;
+            if (storageWeightInput) storageWeightInput.value = state.storageWeight;
+            if (storageStartInput) storageStartInput.value = state.storageStart;
+            if (storageEndInput) storageEndInput.value = state.storageEnd;
+           
+            // Обновляем отображение выбранной страны
+            if (state.country && COUNTRIES_DATA[state.country]) {
+                const data = COUNTRIES_DATA[state.country];
+                selectedCountryName.textContent = data.ru || data.name;
+                selectedCountryName.className = "font-bold text-base text-gray-900";
+            } else {
+                selectedCountryName.textContent = "Поиск страны...";
+                selectedCountryName.className = "font-bold text-base text-gray-400";
+            }
+
+            // Перерисовываем компоненты
+            updateUI(); // Табы, иконки
+            renderPieces();
+            renderSurcharges();
+            renderPackaging(); // Обновляем UI упаковки
+            calculate(); // Запускаем расчет
+            closeHistory();
+        }
+
+        window.deleteHistoryItem = function(id) {
+            state.history = state.history.filter(i => i.id !== id);
+            localStorage.setItem('dhlCalcHistory', JSON.stringify(state.history));
+            updateHistoryBadge();
+            renderHistoryList();
+        }
+
+        window.clearAllHistory = function() {
+            if(confirm('Вы уверены, что хотите очистить всю историю?')) {
+                state.history = [];
+                localStorage.removeItem('dhlCalcHistory');
+                updateHistoryBadge();
+                renderHistoryList();
+            }
+        }
+
+        function updateHistoryBadge() {
+            const count = state.history.length;
+            if (count > 0) {
+                historyCountBadge.textContent = count;
+                historyCountBadge.classList.remove('opacity-0');
+            } else {
+                historyCountBadge.classList.add('opacity-0');
+            }
+        }
+
+        function renderHistoryList() {
+            historyListEl.innerHTML = '';
+            if (state.history.length === 0) {
+                historyListEl.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-64 text-gray-400">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-2 opacity-50"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+                    <p class="text-sm font-bold opacity-70">История пуста</p>
+                </div>`;
+                return;
+            }
+
+            state.history.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "p-4 border-b border-gray-100 hover:bg-white transition-colors group relative";
+               
+                const dirLabel = item.direction === 'export' ? '<span class="text-blue-500 font-bold text-xs uppercase bg-blue-50 px-2 py-0.5 rounded">Экспорт</span>' :
+                                 (item.direction === 'import' ? '<span class="text-green-600 font-bold text-xs uppercase bg-green-50 px-2 py-0.5 rounded">Импорт</span>' :
+                                 '<span class="text-purple-500 font-bold text-xs uppercase bg-purple-50 px-2 py-0.5 rounded">Хранение</span>');
+
+                const total = item.summary.totalKgs || 0;
+                const weight = item.summary.weight || 0;
+
+                div.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center gap-2">
+                            ${dirLabel}
+                            <span class="text-[10px] text-gray-400 font-medium">${item.timestamp}</span>
+                        </div>
+                        <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="loadHistoryItem(${item.id})" class="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg" title="Загрузить">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            </button>
+                            <button onclick="deleteHistoryItem(${item.id})" class="text-red-400 hover:bg-red-50 p-1.5 rounded-lg" title="Удалить">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-end cursor-pointer" onclick="loadHistoryItem(${item.id})">
+                        <div>
+                            <h4 class="font-black text-gray-800 text-lg leading-tight">${item.summary.countryName}</h4>
+                            <p class="text-xs text-gray-500 mt-1 font-medium">
+                                ${item.summary.type} • ${weight.toFixed(1)} кг
+                            </p>
+                        </div>
+                        <div class="text-right">
+                            <span class="block text-xl font-black text-gray-900">${total.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})} <span class="text-xs text-gray-400">KGS</span></span>
+                        </div>
+                    </div>
+                `;
+                historyListEl.appendChild(div);
+            });
+        }
+
+        // --- ACTIONS ---
+        window.setDirection = function(dir) {
+            state.direction = dir;
+            updateUI();
+            calculate();
+        };
+
+        window.setType = function(t) {
+            state.type = t;
+            updateUI();
+            calculate();
+        };
+
+        function toggleCountryDropdown() {
+            countryDropdown.classList.toggle('hidden');
+            if (!countryDropdown.classList.contains('hidden')) {
+                countrySearch.focus();
+                countryDropdown.classList.remove('opacity-0', 'scale-95');
+                renderCountries();
+            } else {
+                countryDropdown.classList.add('opacity-0', 'scale-95');
+            }
+        }
+
+        function filterCountries(e) {
+            renderCountries(e.target.value);
+        }
+
+        function renderCountries(search = '') {
+            const s = search.toLowerCase();
+            const filtered = Object.entries(COUNTRIES_DATA)
+                .filter(([code, data]) => data.name.toLowerCase().includes(s) || (data.ru && data.ru.toLowerCase().includes(s)))
+                .sort((a, b) => (a[1].ru || a[1].name).localeCompare(b[1].ru || b[1].name));
+
+            countryList.innerHTML = '';
+            if (filtered.length > 0) {
+                filtered.forEach(([code, data]) => {
+                    const div = document.createElement('div');
+                    // Changed red border/bg to yellow
+                    div.className = `px-4 py-3 cursor-pointer text-sm font-bold transition-all flex justify-between items-center ${state.country === code ? 'bg-yellow-50 text-[#F59E0B] border-l-4 border-[#F59E0B]' : 'text-gray-700 hover:bg-gray-50 border-l-4 border-transparent'}`;
+                    div.innerHTML = `<span>${data.ru || data.name} <span class="text-gray-400 text-xs ml-1 font-medium">${data.ru ? data.name : ''}</span></span><span class="text-xs text-gray-400 font-bold bg-gray-100 px-2 py-1 rounded">Зона ${data.zone}</span>`;
+                    div.onclick = () => {
+                        state.country = code;
+                        selectedCountryName.textContent = data.ru || data.name;
+                        selectedCountryName.className = "font-bold text-base text-gray-900";
+                        toggleCountryDropdown();
+                        checkRiskCountry();
+                        calculate();
+                    };
+                    countryList.appendChild(div);
+                });
+            } else {
+                countryList.innerHTML = '<div class="px-4 py-6 text-gray-400 text-center text-sm font-medium">Ничего не найдено</div>';
+            }
+        }
+
+        function checkRiskCountry() {
+             const isRisk = RISK_COUNTRIES.includes(state.country);
+             if (isRisk) {
+                 state.selectedSurcharges.elevatedRisk = { active: true, qty: 1 };
+             } else {
+                 if (state.selectedSurcharges.elevatedRisk) state.selectedSurcharges.elevatedRisk.active = false;
+             }
+             updateSurchargeUI();
+        }
+
+        // --- ЛОГИКА УПАКОВКИ (НОВОЕ) ---
+        function togglePackagingSection() {
+            state.isPackagingOpen = !state.isPackagingOpen;
+            if (state.isPackagingOpen) {
+                packagingList.classList.remove('max-h-0', 'opacity-0', 'scale-95');
+                packagingList.classList.add('max-h-[2000px]', 'opacity-100', 'scale-100', 'mt-4');
+                packagingChevron.classList.add('rotate-180');
+                
+                // Анимация иконки коробки при открытии
+                if(packagingIconWrapper) {
+                    packagingIconWrapper.classList.remove('animate-box-pop');
+                    setTimeout(() => packagingIconWrapper.classList.add('animate-box-pop'), 10);
+                    // Меняем иконку на "открытую" (опционально, но эффектно)
+                    packagingIconWrapper.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline><polyline points="7.5 19.79 7.5 14.6 3 12"></polyline><polyline points="21 12 16.5 14.6 16.5 19.79"></polyline><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>`;
+                }
+            } else {
+                packagingList.classList.remove('max-h-[2000px]', 'opacity-100', 'scale-100', 'mt-4');
+                packagingList.classList.add('max-h-0', 'opacity-0', 'scale-95');
+                packagingChevron.classList.remove('rotate-180');
+                
+                // Возвращаем иконку "закрытой" коробки
+                if(packagingIconWrapper) {
+                    packagingIconWrapper.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>`;
+                }
+            }
+        }
+
+        function renderPackaging() {
+            packagingList.innerHTML = '';
+            Object.keys(PACKAGING_CONFIG).forEach(id => {
+                const config = PACKAGING_CONFIG[id];
+                const div = document.createElement('div');
+                div.id = `pkg-${id}`;
+                div.className = "flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer border-gray-100 bg-white hover:border-gray-300";
+                div.onclick = () => togglePackagingItem(id);
+
+                const content = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-5 h-5 rounded border flex items-center justify-center transition-colors border-gray-300 bg-white" id="pkg-checkbox-${id}"></div>
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-gray-600" id="pkg-label-${id}">${config.name}</span>
+                            <span class="text-[10px] text-gray-400 font-medium">+ ${config.rate} <span class="base-currency">€</span></span>
+                        </div>
+                    </div>
+                `;
+                div.innerHTML = content;
+                packagingList.appendChild(div);
+            });
+            updatePackagingUI();
+        }
+
+        function togglePackagingItem(id) {
+            if (!state.selectedPackaging[id]) state.selectedPackaging[id] = { active: false };
+            state.selectedPackaging[id].active = !state.selectedPackaging[id].active;
+            updatePackagingUI();
+            calculate();
+        }
+
+        function updatePackagingUI() {
+            Object.keys(PACKAGING_CONFIG).forEach(id => {
+                const el = document.getElementById(`pkg-${id}`);
+                const checkbox = document.getElementById(`pkg-checkbox-${id}`);
+                const label = document.getElementById(`pkg-label-${id}`);
+                const isActive = state.selectedPackaging[id]?.active;
+
+                if (isActive) {
+                    el.className = "flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer border-[#F59E0B] bg-yellow-50 shadow-sm";
+                    checkbox.className = "w-5 h-5 rounded border flex items-center justify-center transition-colors bg-[#F59E0B] border-[#F59E0B]";
+                    checkbox.innerHTML = '<div class="w-2 h-2 bg-white rounded-full"></div>';
+                    label.className = "text-xs font-bold text-[#F59E0B]";
+                } else {
+                    el.className = "flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer border-gray-100 bg-white hover:border-gray-300";
+                    checkbox.className = "w-5 h-5 rounded border flex items-center justify-center transition-colors border-gray-300 bg-white";
+                    checkbox.innerHTML = '';
+                    label.className = "text-xs font-bold text-gray-600";
+                }
+            });
+            const symbol = '€';
+            document.querySelectorAll('.base-currency').forEach(el => el.textContent = symbol);
+        }
+
+        function toggleSurcharges() {
+            state.isSurchargesOpen = !state.isSurchargesOpen;
+            if (state.isSurchargesOpen) {
+                surchargesList.classList.remove('max-h-0', 'opacity-0', 'scale-95');
+                surchargesList.classList.add('max-h-[2000px]', 'opacity-100', 'scale-100', 'mt-4');
+               
+                surchargesChevron.classList.add('rotate-180');
+                if(surchargesPlusIcon) surchargesPlusIcon.classList.add('rotate-[360deg]');
+            } else {
+                surchargesList.classList.remove('max-h-[2000px]', 'opacity-100', 'scale-100', 'mt-4');
+                surchargesList.classList.add('max-h-0', 'opacity-0', 'scale-95');
+               
+                surchargesChevron.classList.remove('rotate-180');
+                if(surchargesPlusIcon) surchargesPlusIcon.classList.remove('rotate-[360deg]');
+            }
+        }
+
+        function renderSurcharges() {
+            surchargesList.innerHTML = '';
+           
+            const demandDiv = createSurchargeElement('demandSurcharge', SURCHARGES_CONFIG.demandSurcharge, false);
+            surchargesList.appendChild(demandDiv);
+
+            Object.keys(SURCHARGES_CONFIG).filter(k => k !== 'demandSurcharge').forEach(id => {
+                const config = SURCHARGES_CONFIG[id];
+                const div = createSurchargeElement(id, config, config.type === 'per_piece');
+                surchargesList.appendChild(div);
+            });
+            updateSurchargeUI();
+        }
+
+        function createSurchargeElement(id, config, hasQty) {
+            const div = document.createElement('div');
+            div.id = `surcharge-${id}`;
+            div.className = "flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer border-gray-100 bg-white hover:border-gray-300";
+            div.onclick = () => toggleSurcharge(id);
+
+            // Определяем актуальную ставку (для DTP берем из настроек)
+            let currentRate = config.rate;
+            if (id === 'dutiesTaxes') {
+                currentRate = state.settings.dtp;
+            }
+
+            // Специальное отображение цены для Remote Area и Remote Area Pickup
+            let priceLabel = '';
+            if (id === 'remoteArea' || id === 'remoteAreaPickup') {
+                // ОБНОВЛЕННАЯ ПОДПИСЬ ДЛЯ ОБЕИХ НАДБАВОК
+                priceLabel = `<span class="text-[10px] text-gray-400 font-medium">0.5 <span class="base-currency">€</span>/кг (мин. 24 <span class="base-currency">€</span>)</span>`;
+            } else if (currentRate > 0 && config.type !== 'dynamic') {
+                priceLabel = `<span class="text-[10px] text-gray-400 font-medium">+ ${currentRate} <span class="base-currency">€</span></span>`;
+            }
+
+            const content = `
+                <div class="flex items-center gap-3">
+                    <div class="w-5 h-5 rounded border flex items-center justify-center transition-colors border-gray-300 bg-white" id="checkbox-${id}"></div>
+                    <div class="flex flex-col">
+                        <span class="text-xs font-bold text-gray-600" id="label-${id}">${config.name}</span>
+                        ${priceLabel}
+                    </div>
+                </div>
+                ${hasQty ? `<div class="flex items-center gap-2 hidden" id="qty-wrapper-${id}" onclick="event.stopPropagation()"><span class="text-[10px] text-gray-400 uppercase font-bold">Мест:</span><input type="number" value="1" min="1" class="w-12 px-1 py-1 text-center bg-white border-2 border-yellow-200 rounded-md text-xs font-bold text-[#F59E0B] focus:outline-none focus:border-[#F59E0B]" onchange="updateSurchargeQty('${id}', this.value)"></div>` : ''}
+            `;
+            div.innerHTML = content;
+            return div;
+        }
+
+        window.toggleSurcharge = function(id) {
+            if (!state.selectedSurcharges[id]) state.selectedSurcharges[id] = { active: false, qty: 1 };
+            
+            // Запоминаем текущее состояние перед переключением
+            const wasActive = state.selectedSurcharges[id].active;
+            
+            state.selectedSurcharges[id].active = !wasActive;
+            
+            // Если пользователь выключает вручную - ставим флаг manuallyUnchecked
+            // Если включает вручную - снимаем этот флаг
+            if (wasActive) { 
+                state.selectedSurcharges[id].manuallyUnchecked = true;
+            } else {
+                state.selectedSurcharges[id].manuallyUnchecked = false;
+            }
+
+            updateSurchargeUI();
+            calculate();
+        };
+
+        window.updateSurchargeQty = function(id, val) {
+            const qty = parseInt(val) || 1;
+            if (!state.selectedSurcharges[id]) state.selectedSurcharges[id] = { active: true, qty: 1 };
+            state.selectedSurcharges[id].qty = qty > 0 ? qty : 1;
+            calculate();
+        };
+
+        function updateSurchargeUI() {
+            Object.keys(SURCHARGES_CONFIG).forEach(id => {
+                const el = document.getElementById(`surcharge-${id}`);
+                const checkbox = document.getElementById(`checkbox-${id}`);
+                const label = document.getElementById(`label-${id}`);
+                const qtyWrapper = document.getElementById(`qty-wrapper-${id}`);
+                const isActive = state.selectedSurcharges[id]?.active;
+
+                if (isActive) {
+                    // Changed red border/bg to yellow/amber
+                    el.className = "flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer border-[#F59E0B] bg-yellow-50 shadow-sm";
+                    checkbox.className = "w-5 h-5 rounded border flex items-center justify-center transition-colors bg-[#F59E0B] border-[#F59E0B]";
+                    checkbox.innerHTML = '<div class="w-2 h-2 bg-white rounded-full"></div>';
+                    label.className = "text-xs font-bold text-[#F59E0B]";
+                    if (qtyWrapper) qtyWrapper.classList.remove('hidden');
+                } else {
+                    el.className = "flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer border-gray-100 bg-white hover:border-gray-300";
+                    checkbox.className = "w-5 h-5 rounded border flex items-center justify-center transition-colors border-gray-300 bg-white";
+                    checkbox.innerHTML = '';
+                    label.className = "text-xs font-bold text-gray-600";
+                    if (qtyWrapper) qtyWrapper.classList.add('hidden');
+                }
+            });
+           
+            const symbol = '€';
+            document.querySelectorAll('.base-currency').forEach(el => el.textContent = symbol);
+        }
+
+        window.renderPieces = function() {
+            piecesContainer.innerHTML = '';
+            totalPiecesBadge.textContent = `Всего мест: ${state.pieces.length}`;
+           
+            state.pieces.forEach((piece, index) => {
+                const div = document.createElement('div');
+                div.className = "relative group animate-in fade-in slide-in-from-left-8 duration-500 ease-out";
+                div.innerHTML = `
+                    <div class="absolute -left-9 top-6 w-7 h-7 bg-[#FFCC00] text-[#F59E0B] rounded-full flex items-center justify-center text-sm font-black z-10 border-2 border-white shadow-md">${index + 1}</div>
+                    <div class="flex gap-4 items-stretch">
+                        <div class="flex-1 bg-white p-4 rounded-2xl border-2 border-gray-100 transition-all duration-300 hover:border-[#FFCC00] hover:shadow-lg hover:-translate-y-1 focus-within:border-[#F59E0B] focus-within:ring-4 focus-within:ring-[#F59E0B]/10">
+                            <div class="grid grid-cols-2 gap-4 mb-3">
+                                <div>
+                                    <label class="text-[10px] text-gray-400 font-bold uppercase mb-1 block">Вес ${state.weightUnit.toUpperCase()}</label>
+                                    <div class="relative">
+                                        <input type="number" placeholder="0" value="${piece.weight}" oninput="updatePiece(${piece.id}, 'weight', this.value)" class="w-full px-3 py-2 bg-gray-50 border-2 border-transparent rounded-lg font-black text-gray-800 focus:outline-none focus:bg-white focus:border-[#F59E0B] transition-all text-lg">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-gray-400 font-bold uppercase mb-1 block">Габариты ${state.dimUnit.toUpperCase()}</label>
+                                    <div class="grid grid-cols-3 gap-1">
+                                        <input type="number" placeholder="Д" value="${piece.length}" oninput="updatePiece(${piece.id}, 'length', this.value)" class="w-full px-1 py-2 bg-gray-50 border-2 border-transparent rounded-lg font-bold text-gray-800 text-center text-sm focus:outline-none focus:bg-white focus:border-[#F59E0B] transition-all">
+                                        <input type="number" placeholder="Ш" value="${piece.width}" oninput="updatePiece(${piece.id}, 'width', this.value)" class="w-full px-1 py-2 bg-gray-50 border-2 border-transparent rounded-lg font-bold text-gray-800 text-center text-sm focus:outline-none focus:bg-white focus:border-[#F59E0B] transition-all">
+                                        <input type="number" placeholder="В" value="${piece.height}" oninput="updatePiece(${piece.id}, 'height', this.value)" class="w-full px-1 py-2 bg-gray-50 border-2 border-transparent rounded-lg font-bold text-gray-800 text-center text-sm focus:outline-none focus:bg-white focus:border-[#F59E0B] transition-all">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-2">
+                                <button onclick="duplicatePiece(${piece.id})" class="text-[10px] font-bold text-gray-400 hover:text-[#F59E0B] flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-yellow-50">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                    Копировать
+                                </button>
+                                <button onclick="clearPieceFields(${piece.id})" class="text-[10px] font-bold text-gray-400 hover:text-blue-500 flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-blue-50">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
+                                    Очистить
+                                </button>
+                                ${state.pieces.length > 1 ? `<button onclick="removePiece(${piece.id})" class="text-[10px] font-bold text-gray-300 hover:text-red-500 flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-red-50"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Удалить</button>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                piecesContainer.appendChild(div);
+            });
+
+            const addBtn = document.createElement('div');
+            addBtn.innerHTML = `
+                <button onclick="addPiece()" class="w-full py-3 bg-[#FFCC00] text-gray-900 font-bold rounded-2xl shadow-md hover:bg-[#F59E0B] hover:shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 group">
+                    <div class="w-6 h-6 rounded-full bg-white/40 text-gray-900 flex items-center justify-center group-hover:bg-white/50 transition-colors">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </div>
+                    Добавить место
+                </button>
+            `;
+            piecesContainer.appendChild(addBtn);
+        }
+
+        window.updatePiece = function(id, field, value) {
+            const p = state.pieces.find(x => x.id === id);
+            if (p) {
+                p[field] = value;
+                calculate();
+            }
+        };
+
+        window.addPiece = function() {
+            const last = state.pieces[state.pieces.length - 1];
+            state.pieces.push({
+                id: Date.now(),
+                weight: last ? last.weight : '',
+                length: last ? last.length : '',
+                width: last ? last.width : '',
+                height: last ? last.height : ''
+            });
+            renderPieces();
+            calculate();
+        };
+
+        window.duplicatePiece = function(id) {
+            const p = state.pieces.find(x => x.id === id);
+            if (p) {
+                state.pieces.push({ ...p, id: Date.now() });
+                renderPieces();
+                calculate();
+            }
+        };
+
+        // Новая функция для очистки полей конкретного места
+        window.clearPieceFields = function(id) {
+            const p = state.pieces.find(x => x.id === id);
+            if (p) {
+                p.weight = '';
+                p.length = '';
+                p.width = '';
+                p.height = '';
+                renderPieces();
+                calculate();
+            }
+        };
+
+        window.removePiece = function(id) {
+            if (state.pieces.length > 1) {
+                state.pieces = state.pieces.filter(p => p.id !== id);
+                renderPieces();
+                calculate();
+            }
+        };
+
+        window.clearPieces = function() {
+            const container = document.getElementById('pieces-container');
+            container.classList.add('opacity-50', 'scale-95');
+           
+            setTimeout(() => {
+                state.pieces = [{ id: Date.now(), weight: '', length: '', width: '', height: '' }];
+                renderPieces();
+                calculate();
+               
+                container.classList.remove('opacity-50', 'scale-95');
+                container.classList.add('transition-all', 'duration-200');
+            }, 150);
+        };
+
+        // --- DYNAMIC ICONS LOGIC ---
+        function getDocSvgContent(level) {
+            const singleDoc = (x, y, scale=1) => `
+                <g transform="translate(${x},${y}) scale(${scale})">
+                    <path d="M12 4C12 2.89543 12.8954 2 14 2H42L56 16V60C56 61.1046 55.1046 62 54 62H14C12.8954 62 12 61.1046 12 60V4Z" fill="#F3F4F6"/>
+                    <path d="M12 4C12 2.89543 12.8954 2 14 2H42L56 16V60C56 61.1046 55.1046 62 54 62H14C12.8954 62 12 61.1046 12 60V4Z" fill="white" fill-opacity="0.5"/>
+                    <path d="M42 2V16H56" fill="#D1D5DB"/>
+                    <rect x="20" y="14" width="16" height="3" rx="1.5" fill="#F59E0B" fill-opacity="0.8"/>
+                    <rect x="20" y="24" width="28" height="2" rx="1" fill="#9CA3AF"/>
+                    <rect x="20" y="32" width="28" height="2" rx="1" fill="#9CA3AF"/>
+                    <rect x="20" y="40" width="28" height="2" rx="1" fill="#9CA3AF"/>
+                    <rect x="20" y="48" width="20" height="2" rx="1" fill="#9CA3AF"/>
+                    <path d="M42 2L56 16M42 2H14C12.8954 2 12 2.89543 12 4V60C12 61.1046 12.8954 62 14 62H54C55.1046 62 56 61.1046 56 60V16M42 2V16H56" stroke="#E5E7EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </g>
+            `;
+
+            if (level === 1) {
+                return singleDoc(0, 0);
+            } else if (level === 2) {
+                return `
+                    ${singleDoc(-4, -4, 0.95)}
+                    <path d="M0 0" fill="none"/> <!-- spacer -->
+                    ${singleDoc(4, 4, 1)}
+                `;
+            } else {
+                return `
+                    ${singleDoc(-8, -8, 0.85)}
+                    ${singleDoc(-4, -4, 0.9)}
+                    ${singleDoc(0, -6, 0.9)}
+                    ${singleDoc(6, 0, 0.95)}
+                    ${singleDoc(0, 6, 1)}
+                `;
+            }
+        }
+
+        function getGoodsSvgContent(level) {
+            const singleBox = (x, y, scale=1) => `
+                <g transform="translate(${x},${y}) scale(${scale})">
+                    <path d="M12 20L32 10L52 20V50L32 60L12 50V20Z" fill="#DFA956"/>
+                    <path d="M12 20L32 32V60L12 50V20Z" fill="#C68F3C"/>
+                    <path d="M52 20L32 32V60L52 50V20Z" fill="#B07D30"/>
+                    <path d="M12 20L32 10L52 20L32 32L12 20Z" fill="#F3C87A"/>
+                    <path d="M26 13L32 10L38 13L32 16L26 13Z" fill="#E5E7EB" fill-opacity="0.6"/>
+                    <path d="M32 32V60" stroke="#9A6B24" stroke-width="1" stroke-opacity="0.3"/>
+                    <path d="M12 20L32 32M52 20L32 32M32 60V32" stroke="#8D6222" stroke-width="1" stroke-linejoin="round"/>
+                    <path d="M12 20L32 10L52 20" stroke="#B07D30" stroke-width="1" stroke-linejoin="round"/>
+                </g>
+            `;
+
+            if (level === 1) {
+                return singleBox(0, 0);
+            } else if (level === 2) {
+                return `
+                    ${singleBox(-5, -5, 0.9)}
+                    ${singleBox(5, 5, 1)}
+                `;
+            } else {
+                return `
+                    ${singleBox(-8, 5, 0.8)}
+                    ${singleBox(8, 5, 0.8)}
+                    ${singleBox(0, -8, 0.9)}
+                    ${singleBox(0, 8, 1)}
+                `;
+            }
+        }
+
+        function updateDynamicIcons(weight) {
+            let docLevel = 1;
+            if (state.type === 'doc') {
+                if (weight > 0.3 && weight <= 0.9) docLevel = 2;
+                if (weight >= 1.0) docLevel = 3;
+            }
+
+            let goodsLevel = 1;
+            if (state.type !== 'doc') {
+                if (weight >= 5 && weight <= 20) goodsLevel = 2;
+                if (weight > 20) goodsLevel = 3;
+            }
+
+            const currentDocLevel = docIconContainer.dataset.level;
+            if (currentDocLevel != docLevel) {
+                docIconContainer.innerHTML = `<svg width="48" height="48" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-sm animate-in fade-in zoom-in duration-300">${getDocSvgContent(docLevel)}</svg>`;
+                docIconContainer.dataset.level = docLevel;
+            }
+
+            const currentGoodsLevel = goodsIconContainer.dataset.level;
+            if (currentGoodsLevel != goodsLevel) {
+                goodsIconContainer.innerHTML = `<svg width="48" height="48" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-sm animate-in fade-in zoom-in duration-300">${getGoodsSvgContent(goodsLevel)}</svg>`;
+                goodsIconContainer.dataset.level = goodsLevel;
+            }
+        }
+
+        function calculate() {
+            if(state.direction === 'storage') {
+                 const weight = state.storageWeight || 0;
+                 if (!state.storageStart || !state.storageEnd) {
+                     renderResults({ error: true, message: "Выберите даты хранения" });
+                     return;
+                 }
+                 const start = new Date(state.storageStart);
+                 const end = new Date(state.storageEnd);
+                 if (end < start) {
+                     renderResults({ error: true, message: "Дата окончания раньше начала" });
+                     return;
+                 }
+                 const diffTime = Math.abs(end - start);
+                 const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                 const freeDays = 3;
+                 const chargeableDays = Math.max(0, totalDays - freeDays);
+                 const ratePerKgDay = 10;
+                 const baseCost = weight * ratePerKgDay * chargeableDays;
+                 const nsp = baseCost * (state.settings.nsp / 100);
+                 const total = baseCost + nsp;
+                 
+                 state.lastResult = {
+                     finalKgs: total,
+                     weight: weight,
+                     days: totalDays,
+                     countryName: 'Хранение',
+                     type: 'storage'
+                 };
+
+                 renderStorageResults({
+                     days: totalDays,
+                     chargeableDays: chargeableDays,
+                     weight: weight,
+                     rate: ratePerKgDay,
+                     baseCost: baseCost,
+                     nsp: nsp,
+                     total: total
+                 });
+                 return;
+            }
+
+            let totalActualWeight = 0;
+            let totalVolumetricWeight = 0;
+            let totalChargeableSum = 0; 
+            let totalRawChargeableSum = 0; 
+            
+            piecesBreakdown = [];
+            overweightCount = 0;
+            heavyCount = 0;
+            oversizeCount = 0;
+
+            state.pieces.forEach((p, idx) => {
+                let rawWeight = parseFloat(p.weight) || 0;
+                const act = state.weightUnit === 'lb' ? rawWeight * 0.45359237 : rawWeight;
+                let rawL = parseFloat(p.length) || 0;
+                let rawW = parseFloat(p.width) || 0;
+                let rawH = parseFloat(p.height) || 0;
+                let l = rawL, wd = rawW, h = rawH;
+                if (state.dimUnit === 'mm') { l /= 10; wd /= 10; h /= 10; }
+                if (state.dimUnit === 'in') { l *= 2.54; wd *= 2.54; h *= 2.54; }
+                let vol = 0;
+                if (l > 0 && wd > 0 && h > 0) vol = (l * wd * h) / 5000;
+                
+                // Определяем вес места для расчета надбавок (берем макс между физ. и объемным)
+                const rawChg = Math.max(act, vol);
+                totalRawChargeableSum += rawChg; 
+                
+                let roundedPieceChg;
+                if (rawChg > 30) {
+                    roundedPieceChg = Math.ceil(rawChg);
+                } else {
+                    roundedPieceChg = Math.ceil(rawChg * 2) / 2;
+                }
+
+                totalActualWeight += act;
+                totalVolumetricWeight += vol;
+                totalChargeableSum += roundedPieceChg;
+                
+                // ЛОГИКА ИЗМЕНЕНА: Используем rawChg (оплачиваемый вес места), а не act (физический)
+                // Если объемный вес > 70 кг, сработает "Массивный груз"
+                if (rawChg > 70) {
+                    overweightCount++;
+                } else if (rawChg >= 25 && rawChg <= 70) {
+                    heavyCount++;
+                }
+                
+                const dims = [l, wd, h].sort((a, b) => b - a);
+                const isOversize = dims[0] > 100 || dims[1] > 80; // Простая проверка негабарита
+
+                if (isOversize) oversizeCount++;
+                
+                piecesBreakdown.push({
+                    index: idx + 1,
+                    act, vol, 
+                    chg: roundedPieceChg, 
+                    isOverweight: rawChg > 70, // Также обновляем флаг в детализации
+                    isOversize: isOversize
+                });
+            });
+
+            const totalWeightForIcons = Math.max(totalActualWeight, totalVolumetricWeight);
+            updateDynamicIcons(totalWeightForIcons);
+
+            const applyAutoSurcharge = (id, count) => {
+                if (!state.selectedSurcharges[id]) state.selectedSurcharges[id] = { active: false, qty: 1, manuallyUnchecked: false };
+                const item = state.selectedSurcharges[id];
+
+                if (count > 0) {
+                    item.qty = count;
+                    if (!item.manuallyUnchecked) {
+                        item.active = true;
+                    }
+                } else {
+                    // Если условие больше не выполняется, выключаем, даже если было включено вручную
+                    // (или можно оставить item.active = false только если !manuallyUnchecked, но для авто-надбавок лучше сбрасывать)
+                    if(!item.manuallyUnchecked) item.active = false;
+                    // Если количество стало 0, логично выключить надбавку
+                    if (count === 0) item.active = false;
+                }
+            };
+
+            applyAutoSurcharge('overweightPiece', overweightCount);
+            applyAutoSurcharge('heavyPiece', heavyCount);
+            applyAutoSurcharge('oversizePiece', oversizeCount);
+           
+            updateSurchargeUI();
+           
+            if (!state.country) {
+                renderResults(null);
+                state.lastResult = null;
+                return;
+            }
+
+            // ИТОГОВЫЙ РАСЧЕТ ВЕСА
+            let calcWeight;
+            
+            // ИСПРАВЛЕНИЕ: Проверяем СЫРОЙ вес (totalRawChargeableSum) для конвертов
+            // Если сумма точных весов <= 0.3, принудительно ставим 0.3, игнорируя округление мест до 0.5
+            if (state.direction === 'export' && state.type === 'doc' && totalRawChargeableSum <= 0.3 && totalRawChargeableSum > 0) {
+                calcWeight = 0.3;
+            } else {
+                // В остальных случаях используем сумму округленных мест
+                calcWeight = totalChargeableSum;
+                
+                // Проверка на > 30 кг (округление итога)
+                if (calcWeight > 30) {
+                     calcWeight = Math.ceil(calcWeight);
+                } else {
+                     // Для весов <= 30 кг минимальный вес 0.5 (если вдруг сумма вышла меньше, хотя округление мест это предотвращает)
+                     if (calcWeight < 0.5) calcWeight = 0.5;
+                     // Страховка округления
+                     calcWeight = Math.ceil(calcWeight * 2) / 2;
+                }
+            }
+            let roundedWeight = calcWeight;
+
+            const activeDocsTable = state.direction === 'export' ? EXPORT_DOCS_SMALL : IMPORT_DOCS_SMALL;
+            const activeGoodsTable = state.direction === 'export' ? EXPORT_MAIN_TABLE : IMPORT_MAIN_TABLE;
+            let usedTable = null;
+            let isHeavyWeight = false;
+
+            // Выбор таблицы
+            if (state.type === 'doc' && roundedWeight <= 2.0) {
+               if (state.direction === 'export' && roundedWeight <= 0.3) {
+                   usedTable = EXPORT_ENVELOPE;
+               } else {
+                   usedTable = activeDocsTable;
+               }
+            } else {
+               usedTable = activeGoodsTable;
+               if (roundedWeight > 70) {
+                  isHeavyWeight = true;
+               }
+            }
+
+            const zoneData = COUNTRIES_DATA[state.country];
+            const zoneId = zoneData?.zone;
+            let baseTariff = 0;
+            let overweightDetails = null;
+
+            if (!isHeavyWeight) {
+                let tableRow = usedTable.find(r => r[0] === roundedWeight);
+                if (!tableRow) tableRow = usedTable.find(r => r[0] >= roundedWeight);
+                if (tableRow && zoneId >= 1 && zoneId <= 10) baseTariff = tableRow[zoneId];
+            } else {
+                // ЛОГИКА ДЛЯ ВЕСА > 70 КГ
+                const row70 = usedTable.find(r => r[0] === 70.0);
+                if (row70 && zoneId >= 1 && zoneId <= 10) {
+                    const basePrice70 = row70[zoneId];
+                    const weightDiff = roundedWeight - 70;
+                    let multiplier = 0;
+                    const activeOverweightMultipliers = state.direction === 'import' ? IMPORT_OVERWEIGHT_MULTIPLIERS : EXPORT_OVERWEIGHT_MULTIPLIERS;
+                    
+                    // Исправлен поиск диапазона: используем индексы массива [min, max, zone1, zone2...]
+                    const range = activeOverweightMultipliers.find(r => roundedWeight >= r[0] && roundedWeight <= r[1]);
+                    
+                    if (range) {
+                        // Индексы зон смещены на 1 (Zone 1 находится по индексу 2)
+                        // Пример массива: [70.1, 300, RateZ1, RateZ2...]
+                        multiplier = range[zoneId + 1] || 0;
+                    }
+
+                    const extraCost = weightDiff * multiplier;
+                    baseTariff = basePrice70 + extraCost;
+                    
+                    // Обновляем структуру данных для отображения (fee: 100 для справки)
+                    overweightDetails = { base70: basePrice70, diff: weightDiff, mult: multiplier, extra: extraCost, fee: 100 };
+                }
+            }
+
+            if (!baseTariff || baseTariff === 0) {
+                renderResults({ error: true, message: "Тариф не найден (проверьте зону или вес)" });
+                state.lastResult = null;
+                return;
+            }
+
+            const discountVal = parseFloat(state.discountPercent) || 0;
+            const discountAmount = baseTariff * (discountVal / 100);
+            const demandCoef = state.type === 'doc' ? state.settings.demandDoc : state.settings.demandGoods;
+            const isDemandActive = state.selectedSurcharges['demandSurcharge']?.active !== false;
+            const demandSurcharge = isDemandActive ? roundedWeight * demandCoef : 0;
+            const extraCharges = parseFloat(state.extraChargesInput) || 0;
+            let totalSurcharges = 0;
+            let dutiesTaxesAmount = 0;
+            const surchargesBreakdown = [];
+           
+            Object.keys(state.selectedSurcharges).forEach(id => {
+                if (id === 'demandSurcharge') return;
+                const item = state.selectedSurcharges[id];
+                if (item?.active) {
+                    const config = SURCHARGES_CONFIG[id];
+                    if (id === 'dutiesTaxes') {
+                        // ИСПОЛЬЗУЕМ ЗНАЧЕНИЕ ИЗ НАСТРОЕК ВМЕСТО КОНСТАНТЫ
+                        dutiesTaxesAmount = state.settings.dtp;
+                        return;
+                    }
+                    let cost = 0;
+                    let formula = '';
+                    
+                    if (id === 'remoteArea' || id === 'remoteAreaPickup') {
+                        // ОБЩАЯ ФОРМУЛА ДЛЯ ОТДАЛЕННЫХ РАЙОНОВ (ДОСТАВКА И ЗАБОР)
+                        // 0.5 евро за кг, минимум 24 евро
+                        const calc = roundedWeight * 0.5;
+                        cost = Math.max(24, calc);
+                        formula = cost === 24 ? 'Min 24' : `${roundedWeight} * 0.5`;
+                    }
+                    else if (id === 'bondedStorage') { cost = 11; formula = 'Base 11'; } 
+                    else if (config.type === 'per_piece' || config.type === 'per_line_excess') { 
+                        cost = config.rate * (item.qty || 1); 
+                        formula = `${config.rate} * ${item.qty}`; 
+                    }
+                    else if (config.type === 'per_kg_with_min') { 
+                        const calc = roundedWeight * config.rate; 
+                        cost = Math.max(config.min, calc); 
+                        formula = `${roundedWeight}*${config.rate} (Min ${config.min})`; 
+                    }
+                    else if (config.type === 'complex_storage') { 
+                        cost = config.rate + (roundedWeight * config.rate_extra); 
+                        formula = `${config.rate} + ${roundedWeight}*${config.rate_extra}`;
+                    }
+                    else { 
+                        cost = config.rate; 
+                        formula = 'Fixed'; 
+                    }
+                    
+                    totalSurcharges += cost;
+                    surchargesBreakdown.push({ name: config.name, cost, formula });
+                }
+            });
+
+            // --- УПАКОВКА (PACKAGING) ---
+            let totalPackagingCost = 0;
+            const packagingBreakdown = [];
+            Object.keys(state.selectedPackaging).forEach(id => {
+                if (state.selectedPackaging[id]?.active) {
+                    const config = PACKAGING_CONFIG[id];
+                    const cost = config.rate;
+                    totalPackagingCost += cost;
+                    packagingBreakdown.push({ name: config.name, cost });
+                }
+            });
+
+            let totalPieceSurcharges = 0;
+            // ОТКЛЮЧЕН АВТОМАТИЧЕСКИЙ РАСЧЕТ ПО ПАРАМЕТРАМ МЕСТ
+            /* piecesBreakdown.forEach(p => {
+                let weightSurcharge = 0;
+                let dimSurcharge = 0;
+                // Updated to use actual config values
+                if (p.act >= 70) weightSurcharge = SURCHARGES_CONFIG.overweightPiece.rate;
+                else if (p.act >= 25) weightSurcharge = SURCHARGES_CONFIG.heavyPiece.rate;
+                if (p.isOversize) dimSurcharge = SURCHARGES_CONFIG.oversizePiece.rate;
+               
+                let applicable = Math.max(weightSurcharge, dimSurcharge);
+                totalPieceSurcharges += applicable;
+            }); 
+            */
+
+            if (state.selectedSurcharges['nonStackable']?.active) {
+                 const config = SURCHARGES_CONFIG['nonStackable'];
+                 const cost = config.rate * (state.selectedSurcharges['nonStackable'].qty || 1);
+                 totalSurcharges += cost;
+                 surchargesBreakdown.push({ name: config.name, cost });
+            }
+
+            // Добавляем упаковку к сумме до топлива
+            let preFuelTotal = (baseTariff - discountAmount) + demandSurcharge + extraCharges + totalSurcharges + totalPieceSurcharges + totalPackagingCost;
+            const fuelMultiplier = 1 + (state.settings.fuelSurcharge / 100);
+            const totalWithFuel = preFuelTotal * fuelMultiplier;
+            const totalFinal = totalWithFuel + dutiesTaxesAmount;
+
+            let finalEur = totalFinal;
+            let finalKgs = finalEur * state.settings.eurToKgs;
+            let finalUsd = finalKgs / state.settings.usdToKgs;
+            const dutiesTaxesConverted = dutiesTaxesAmount * state.settings.eurToKgs;
+            const baseSymbol = '€';
+
+            let breakdownTotalWeight = 0;
+            piecesBreakdown.forEach(p => breakdownTotalWeight += p.chg);
+            piecesBreakdown.forEach(p => {
+                 const ratio = breakdownTotalWeight > 0 ? (p.chg / breakdownTotalWeight) : (1 / piecesBreakdown.length);
+                 p.cost = totalWithFuel * ratio;
+            });
+
+            // Сохраняем результат для истории
+            state.lastResult = {
+                finalWeight: roundedWeight,
+                // Добавляем исходные веса для детализации
+                totalActualWeight: totalActualWeight,
+                totalVolumetricWeight: totalVolumetricWeight,
+                baseTariff,
+                baseSymbol,
+                discountPercent: discountVal,
+                discountAmount,
+                demandSurcharge,
+                extraCharges,
+                totalSurcharges,
+                totalPieceSurcharges,
+                totalPackagingCost, // Сохраняем стоимость упаковки
+                packagingBreakdown, // Сохраняем детали упаковки
+                surchargesBreakdown,
+                preFuelTotal,
+                fuelPercent: state.settings.fuelSurcharge,
+                fuelSurchargeAmount: totalWithFuel - preFuelTotal,
+                dutiesTaxesAmount,
+                dutiesTaxesConverted,
+                finalEur, finalUsd, finalKgs,
+                totalFinal,
+                overweight: overweightDetails,
+                piecesBreakdown,
+                zone: zoneId,
+                countryName: zoneData.ru || zoneData.name
+            };
+
+            renderResults(state.lastResult);
+        }
+
+        function renderStorageResults(res) {
+            const container = document.getElementById('results-content');
+            document.getElementById('result-card').className = "bg-white/95 backdrop-blur-xl p-8 rounded-[2rem] shadow-2xl relative border-t-[12px] border-blue-500 transition-all duration-500 hover:scale-[1.01]";
+           
+            let html = `<div class="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-500 ease-out">`;
+            // ОБНОВЛЕНО: Акцент на весе груза в хранении
+            html += `<div class="flex justify-between items-center py-2 border-b border-gray-100"><div><p class="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Период</p><p class="font-bold text-gray-800">${res.days} дней</p></div><div class="text-right"><p class="text-xs text-[#F59E0B] font-black uppercase tracking-widest mb-1">Вес груза</p><p class="font-black text-3xl text-gray-900">${res.weight.toFixed(1)} <span class="text-sm text-gray-400 font-bold">KG</span></p></div></div>`;
+            html += `<div class="space-y-2 mt-4">`;
+            html += `<div class="flex justify-between items-baseline py-2 text-sm"><span class="text-gray-600 font-bold">Базовая стоимость</span><span class="text-gray-900 font-extrabold">${res.baseCost.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})} KGS</span></div>`;
+            html += `<div class="text-[10px] text-gray-400 text-right -mt-2 mb-2">(${res.weight} кг × ${res.rate} сом × ${res.chargeableDays} дн.) <span class="text-green-500 font-bold ml-1">${res.days - res.chargeableDays} дн. бесплатно</span></div>`;
+            html += `<div class="flex justify-between items-baseline py-2 text-sm"><span class="text-gray-600 font-bold">НСП (${state.settings.nsp}%)</span><span class="text-gray-900 font-extrabold">+ ${res.nsp.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})} KGS</span></div>`;
+            html += `</div>`;
+            html += `<div class="mt-6 relative overflow-hidden p-6 bg-blue-600 rounded-xl shadow-lg text-white transform hover:scale-[1.02] transition-transform"><div class="absolute top-0 right-0 p-4 opacity-10"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg></div><div class="relative z-10 flex justify-between items-center"><div class="flex flex-col"><span class="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-1">Итого к оплате</span><span class="font-black text-4xl tracking-tighter">${res.total.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})} <span class="text-lg font-bold opacity-80">KGS</span></span></div></div></div>`;
+           
+            // Кнопка сохранения
+            html += `<div class="mt-6 pt-6 border-t border-gray-100 flex justify-center"><button onclick="saveCalculation()" id="save-calc-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-blue-200"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Сохранить расчет</button></div>`;
+           
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
+        function renderResults(res) {
+            const container = document.getElementById('results-content');
+            if (!res) {
+                container.innerHTML = `<div class="py-24 text-center opacity-50"><div class="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-300"><path d="M2 22h20"/><path d="M13 6 2 22"/><path d="m11 2 10.5 9.5-3.5 1-2.5 3.5"/></svg></div><p class="text-sm font-black text-gray-300 uppercase tracking-[0.2em] text-center">Заполните форму для расчета</p></div>`;
+                document.getElementById('result-card').className = "bg-white/95 backdrop-blur-xl p-8 rounded-[2rem] shadow-2xl relative border-t-[12px] border-gray-400 transition-all duration-500 hover:scale-[1.01]";
+                return;
+            }
+
+            if (res.error) {
+                container.innerHTML = `<div class="py-10 text-center animate-in fade-in zoom-in duration-300"><div class="bg-red-50 text-[#F59E0B] p-6 rounded-2xl mb-4 border-2 border-red-100"><div class="mx-auto mb-3 opacity-90"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg></div><h3 class="font-bold text-lg mb-1">Ошибка расчета</h3><p class="text-sm opacity-90">${res.message}</p></div></div>`;
+                document.getElementById('result-card').className = "bg-white/95 backdrop-blur-xl p-8 rounded-[2rem] shadow-2xl relative border-t-[12px] border-gray-400 transition-all duration-500 hover:scale-[1.01]";
+                return;
+            }
+
+            document.getElementById('result-card').className = "bg-white/95 backdrop-blur-xl p-8 rounded-[2rem] shadow-2xl relative border-t-[12px] border-[#F59E0B] transition-all duration-500 hover:scale-[1.01]";
+
+            let html = `<div class="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-500 ease-out">`;
+           
+            // ЗАМЕНА 'Bishkek' на 'Бишкек'
+            html += `<div class="bg-gradient-to-r from-gray-50 to-white border border-gray-200 rounded-2xl p-5 shadow-inner mb-6 relative overflow-hidden"><div class="flex items-center justify-between mb-2"><span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Откуда</span><span class="bg-[#FFCC00] text-[#F59E0B] text-[10px] font-black px-2 py-1 rounded uppercase tracking-wider shadow-sm">Zone ${res.zone}</span><span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Куда</span></div><div class="flex items-center justify-between relative z-10"><span class="font-black text-xl text-gray-900 leading-tight tracking-tight">${state.direction === 'export' ? 'Бишкек' : res.countryName}</span><div class="flex-1 mx-4 relative h-8 flex items-center justify-center"><div class="w-full h-[3px] bg-gray-200 rounded-full"></div><div class="absolute plane-anim-line text-[#F59E0B] top-1/2"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="text-[#F59E0B] transform rotate-90"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg></div></div><span class="font-black text-xl text-gray-900 leading-tight tracking-tight text-right">${state.direction === 'export' ? res.countryName : 'Бишкек'}</span></div></div>`;
+           
+            // ОБНОВЛЕНО: Акцент на ВЕС К ОПЛАТЕ (Желтый текст, крупнее шрифт)
+            html += `<div class="flex justify-between items-center py-2 border-b border-gray-100"><div><p class="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Тип груза</p><p class="font-bold text-gray-800">${state.type === 'doc' ? 'Документы' : 'Посылка'}</p></div><div class="text-right"><p class="text-xs text-[#F59E0B] font-black uppercase tracking-widest mb-1">Вес к оплате</p><p class="font-black text-3xl text-gray-900">${res.finalWeight.toFixed(1)} <span class="text-sm text-gray-400 font-bold">KG</span></p></div></div>`;
+           
+            html += `<div class="h-px bg-gray-200 my-4"></div><div class="space-y-2">`;
+           
+            html += `<div class="flex justify-between items-baseline py-2 text-sm"><span class="text-gray-600 font-bold">Базовый тариф</span><span class="text-gray-900 font-extrabold">${res.baseSymbol} ${res.baseTariff.toFixed(2)}</span></div>`;
+            if (res.overweight) {
+                html += `<div class="bg-white p-2 rounded-lg text-[10px] mb-2 border border-dashed border-gray-300"><div class="flex justify-between text-gray-500 mb-1"><span>Перевес (свыше 70кг):</span><span class="font-mono text-gray-700 font-bold">+ ${res.baseSymbol} ${res.overweight.extra.toFixed(2)}</span></div></div>`;
+            }
+            if (res.discountAmount > 0) {
+                 html += `<div class="flex justify-between items-baseline py-2 text-sm"><span class="text-gray-600 font-bold">Скидка клиента ${res.discountPercent}%</span><span class="text-[#F59E0B] font-black">- ${res.baseSymbol} ${res.discountAmount.toFixed(2)}</span></div>`;
+            }
+            html += `<div class="flex justify-between items-baseline py-2 text-sm"><span class="text-gray-600 font-bold">Сбор за вес (Demand)</span><span class="text-gray-900 font-extrabold">+ ${res.baseSymbol} ${res.demandSurcharge.toFixed(2)}</span></div>`;
+           
+            if (res.surchargesBreakdown.length > 0) {
+                html += `<div class="bg-yellow-50 p-3 rounded-lg space-y-1 border border-yellow-100"><p class="text-[10px] font-black text-[#F59E0B] uppercase mb-1 text-left tracking-wide">Дополнительные услуги:</p>`;
+                res.surchargesBreakdown.forEach(s => {
+                    html += `<div class="flex justify-between text-[11px] font-bold text-gray-700"><span>${s.name}</span><span>+ ${res.baseSymbol} ${s.cost.toFixed(2)}</span></div>`;
+                });
+                html += `</div>`;
+            }
+
+            // Вывод стоимости упаковки
+            if (res.packagingBreakdown && res.packagingBreakdown.length > 0) {
+                html += `<div class="bg-blue-50 p-3 rounded-lg space-y-1 border border-blue-100 mt-2"><p class="text-[10px] font-black text-blue-500 uppercase mb-1 text-left tracking-wide">Упаковка:</p>`;
+                res.packagingBreakdown.forEach(p => {
+                    html += `<div class="flex justify-between text-[11px] font-bold text-gray-700"><span>${p.name}</span><span>+ ${res.baseSymbol} ${p.cost.toFixed(2)}</span></div>`;
+                });
+                html += `</div>`;
+            }
+           
+            if (res.extraCharges > 0 || res.totalPieceSurcharges > 0) {
+                 let totalExtra = res.extraCharges + res.totalPieceSurcharges;
+                 html += `<div class="flex justify-between items-baseline py-2 text-sm"><span class="text-gray-600 font-bold">Прочие надбавки</span><div class="text-right"><span class="text-gray-900 font-bold">+ ${res.baseSymbol} ${totalExtra.toFixed(2)}</span>${res.totalPieceSurcharges > 0 ? '<span class="block text-[10px] text-gray-400 font-medium">(габариты/вес)</span>' : ''}</div></div>`;
+            }
+           
+            html += `<div class="flex justify-between items-baseline py-3 text-sm border-t border-dashed border-gray-300 mt-2"><span class="text-gray-500 font-black text-xs uppercase tracking-wider">Сумма до топлива</span><span class="text-gray-700 font-extrabold">${res.baseSymbol} ${res.preFuelTotal.toFixed(2)}</span></div>`;
+            html += `<div class="flex justify-between items-baseline py-2 text-sm"><span class="text-gray-600 font-bold">Топливная надбавка (${res.fuelPercent}%)</span><span class="text-gray-900 font-extrabold">+ ${res.baseSymbol} ${res.fuelSurchargeAmount.toFixed(2)}</span></div>`;
+            html += `</div>`;
+           
+            if (res.dutiesTaxesAmount > 0) {
+                html += `<div class="mt-4 p-4 bg-[#F59E0B] rounded-xl shadow-lg shadow-yellow-900/20 text-white transform hover:scale-[1.02] transition-transform"><div class="flex justify-between items-center"><span class="font-black text-xs uppercase tracking-wide">Оплата пошлин (DTP)</span><div class="text-right"><span class="block font-black text-2xl">+ ${res.baseSymbol} ${res.dutiesTaxesAmount.toFixed(2)}</span><span class="text-[10px] font-bold text-white/80">≈ ${res.dutiesTaxesConverted.toFixed(0)} KGS</span></div></div></div>`;
+            }
+           
+            html += `<div class="mt-6 bg-gray-50 p-4 rounded-2xl border-2 border-gray-100"><div class="text-center mb-4"><span class="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full shadow-sm border border-gray-100">К оплате в валютах</span></div><div class="grid grid-cols-1 gap-3">`;
+           
+            html += `<div class="flex justify-between items-center p-3 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-100 transition-colors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h12"/><path d="M4 14h9"/><path d="M19 6a7.7 7.7 0 0 0-5.2-2A7.9 7.9 0 0 0 6 12c0 4.4 3.5 8 7.8 8 2 0 3.8-.8 5.2-2"/></svg></div><div class="flex flex-col"><span class="text-xs font-bold text-gray-400 uppercase tracking-wide">В Евро</span><span class="font-black text-xl text-gray-800 tracking-tight">€ ${res.finalEur.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div></div></div>`;
+           
+            html += `<div class="flex justify-between items-center p-3 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-green-200 transition-colors group"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-600 group-hover:bg-green-100 transition-colors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="flex flex-col"><span class="text-xs font-bold text-gray-400 uppercase tracking-wide">В Долларах</span><span class="font-black text-xl text-gray-800 tracking-tight">$ ${res.finalUsd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div></div></div>`;
+           
+            html += `<div class="relative overflow-hidden p-4 bg-[#F59E0B] rounded-xl shadow-lg shadow-yellow-900/20 text-white transform hover:scale-[1.02] transition-transform"><div class="absolute top-0 right-0 p-4 opacity-10"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg></div><div class="relative z-10 flex justify-between items-center"><div class="flex flex-col"><span class="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-1">Итого в Сомах</span><span class="font-black text-3xl tracking-tighter">${res.finalKgs.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})} <span class="text-sm font-bold opacity-80">KGS</span></span></div><div class="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-white"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg></div></div></div>`;
+           
+            html += `</div></div>`;
+
+            // --- DETAILED BREAKDOWN SECTION ---
+            html += `
+            <div class="mt-4 pt-4 border-t border-gray-100">
+                <button onclick="toggleDetails()" class="w-full flex items-center justify-center gap-2 text-xs font-bold text-gray-400 hover:text-gray-600 py-2 transition-colors group">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="group-hover:text-[#F59E0B]"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    <span>Показать подробный расчет</span>
+                </button>
+                <div id="detailed-breakdown" class="hidden mt-3 bg-gray-50 rounded-xl p-4 border border-gray-200 text-[10px] font-mono text-gray-600 space-y-2 shadow-inner">
+                    <!-- 1. Weights -->
+                    <div class="pb-2 border-b border-gray-200">
+                        <div class="font-bold text-gray-800 mb-1">1. ВЕС И ЗОНА</div>
+                        <div class="flex justify-between"><span>Зона:</span><span>${res.zone} (${res.countryName})</span></div>
+                        <div class="flex justify-between"><span>Физ. вес:</span><span>${res.totalActualWeight.toFixed(2)} кг</span></div>
+                        <div class="flex justify-between"><span>Объем. вес:</span><span>${res.totalVolumetricWeight.toFixed(2)} кг</span></div>
+                        <div class="flex justify-between text-blue-600 font-bold"><span>Оплачиваемый:</span><span>${res.finalWeight.toFixed(1)} кг</span></div>
+                    </div>
+
+                    <!-- 2. Base Calculation -->
+                    <div class="pb-2 border-b border-gray-200">
+                        <div class="font-bold text-gray-800 mb-1">2. ТАРИФ И СКИДКИ</div>
+                        <div class="flex justify-between"><span>Базовый тариф:</span><span>${res.baseSymbol}${res.baseTariff.toFixed(2)}</span></div>
+                        ${res.overweight ? `<div class="flex justify-between text-orange-600"><span>Перевес (База 70кг + ${(res.overweight.diff * res.overweight.mult).toFixed(2)}):</span><span>вкл.</span></div>` : ''}
+                        ${res.discountAmount > 0 ? `<div class="flex justify-between text-green-600"><span>Скидка (${res.discountPercent}%):</span><span>-${res.baseSymbol}${res.discountAmount.toFixed(2)}</span></div>` : ''}
+                        <div class="flex justify-between"><span>Demand Surcharge:</span><span>+${res.baseSymbol}${res.demandSurcharge.toFixed(2)}</span></div>
+                    </div>
+
+                    <!-- 3. Surcharges & Packaging -->
+                    <div class="pb-2 border-b border-gray-200">
+                        <div class="font-bold text-gray-800 mb-1">3. НАДБАВКИ И УПАКОВКА</div>
+                        ${res.surchargesBreakdown.length > 0 ? res.surchargesBreakdown.map(s => `<div class="flex justify-between"><span>${s.name}:</span><span>+${res.baseSymbol}${s.cost.toFixed(2)}</span></div>`).join('') : ''}
+                        ${res.packagingBreakdown && res.packagingBreakdown.length > 0 ? res.packagingBreakdown.map(p => `<div class="flex justify-between text-blue-600"><span>${p.name}:</span><span>+${res.baseSymbol}${p.cost.toFixed(2)}</span></div>`).join('') : ''}
+                        ${(res.extraCharges + res.totalPieceSurcharges) > 0 ? `<div class="flex justify-between"><span>Прочие:</span><span>+${res.baseSymbol}${(res.extraCharges + res.totalPieceSurcharges).toFixed(2)}</span></div>` : ''}
+                        ${res.surchargesBreakdown.length === 0 && (!res.packagingBreakdown || res.packagingBreakdown.length === 0) && (res.extraCharges + res.totalPieceSurcharges) === 0 ? '<div class="italic opacity-50">Нет</div>' : ''}
+                    </div>
+
+                    <!-- 4. Fuel & Taxes -->
+                    <div class="pb-2 border-b border-gray-200">
+                        <div class="font-bold text-gray-800 mb-1">4. ТОПЛИВО И НАЛОГИ</div>
+                        <div class="flex justify-between"><span>Сумма до топлива:</span><span>${res.baseSymbol}${res.preFuelTotal.toFixed(2)}</span></div>
+                        <div class="flex justify-between"><span>Топливный сбор (${res.fuelPercent}%):</span><span>+${res.baseSymbol}${res.fuelSurchargeAmount.toFixed(2)}</span></div>
+                        ${res.dutiesTaxesAmount > 0 ? `<div class="flex justify-between text-blue-600 font-bold"><span>Оплата пошлин (DTP):</span><span>+${res.baseSymbol}${res.dutiesTaxesAmount.toFixed(2)}</span></div>` : ''}
+                    </div>
+
+                    <!-- 5. Totals -->
+                    <div>
+                        <div class="font-bold text-gray-800 mb-1">5. ИТОГИ</div>
+                        <div class="flex justify-between font-bold"><span>ИТОГО (EUR):</span><span>${res.baseSymbol}${res.finalEur.toFixed(2)}</span></div>
+                        <div class="flex justify-between"><span>Курс EUR:</span><span>${state.settings.eurToKgs}</span></div>
+                        <div class="flex justify-between font-black text-lg text-[#F59E0B] mt-1"><span>ИТОГО (KGS):</span><span>${res.finalKgs.toLocaleString(undefined, {minimumFractionDigits:0, maximumFractionDigits:0})}</span></div>
+                    </div>
+                </div>
+            </div>`;
+
+            // Кнопка сохранения
+            html += `<div class="mt-4 pt-4 border-t border-gray-100 flex justify-center"><button onclick="saveCalculation()" id="save-calc-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-blue-200"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Сохранить расчет</button></div>`;
+
+            html += `</div>`; // End container
+
+            container.innerHTML = html;
+        }
+       
+        window.toggleDetails = function() {
+            const el = document.getElementById('detailed-breakdown');
+            if (el) {
+                el.classList.toggle('hidden');
+                // Auto scroll to details if opening
+                if (!el.classList.contains('hidden')) {
+                    setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+                }
+            }
+        };
+
+        function updateUI() {
+            const labelDoc = document.getElementById('label-type-doc');
+            const labelGoods = document.getElementById('label-type-goods');
+            const badgeGoods = document.getElementById('goods-min-label');
+
+            if (state.direction === 'export') {
+                dirPill.style.transform = 'translateX(0)';
+                btnExport.className = "relative z-10 py-3 text-sm font-black uppercase tracking-wider transition-colors duration-200 text-white";
+                btnImport.className = "relative z-10 py-3 text-sm font-black uppercase tracking-wider transition-colors duration-200 text-gray-700 hover:text-[#F59E0B]";
+                document.getElementById('btn-storage').className = "relative z-10 py-3 text-sm font-black uppercase tracking-wider transition-colors duration-200 text-gray-700 hover:text-[#F59E0B]";
+                extraCurrencySymbol.textContent = '€';
+                document.getElementById('country-label').innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg> Страна назначения`;
+               
+                mainCalculatorForm.classList.remove('hidden');
+                storageCalculatorForm.classList.add('hidden');
+            } else if (state.direction === 'import') {
+                dirPill.style.transform = 'translateX(100%)';
+                btnExport.className = "relative z-10 py-3 text-sm font-black uppercase tracking-wider transition-colors duration-200 text-gray-700 hover:text-[#F59E0B]";
+                btnImport.className = "relative z-10 py-3 text-sm font-black uppercase tracking-wider transition-colors duration-200 text-white";
+                document.getElementById('btn-storage').className = "relative z-10 py-3 text-sm font-black uppercase tracking-wider transition-colors duration-200 text-gray-700 hover:text-[#F59E0B]";
+                extraCurrencySymbol.textContent = '€';
+                document.getElementById('country-label').innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg> Страна отправления`;
+
+                mainCalculatorForm.classList.remove('hidden');
+                storageCalculatorForm.classList.add('hidden');
+            } else if (state.direction === 'storage') {
+                dirPill.style.transform = 'translateX(200%)';
+                btnExport.className = "relative z-10 py-3 text-sm font-black uppercase tracking-wider transition-colors duration-200 text-gray-700 hover:text-[#F59E0B]";
+                btnImport.className = "relative z-10 py-3 text-sm font-black uppercase tracking-wider transition-colors duration-200 text-gray-700 hover:text-[#F59E0B]";
+                document.getElementById('btn-storage').className = "relative z-10 py-3 text-sm font-black uppercase tracking-wider transition-colors duration-200 text-white";
+               
+                mainCalculatorForm.classList.add('hidden');
+                storageCalculatorForm.classList.remove('hidden');
+            }
+
+            if (state.direction !== 'storage') {
+                if (state.type === 'doc') {
+                    // Active Doc
+                    btnTypeDoc.className = "group border-2 rounded-2xl p-4 flex flex-col items-center gap-2 transition-all duration-300 active:scale-95 bg-yellow-50 border-[#F59E0B] shadow-xl shadow-yellow-900/10 scale-[1.02] relative z-10";
+                    labelDoc.className = "font-black text-sm uppercase text-[#F59E0B] transition-colors";
+                    docMinLabel.className = "text-[10px] font-bold px-3 py-1 rounded-full bg-yellow-100 text-[#F59E0B] transition-colors";
+                   
+                    // Inactive Goods
+                    btnTypeGoods.className = "group border-2 rounded-2xl p-4 flex flex-col items-center gap-2 transition-all duration-300 active:scale-95 bg-white text-gray-500 border-gray-100 hover:border-gray-300 hover:bg-gray-50 opacity-80 hover:opacity-100";
+                    labelGoods.className = "font-black text-sm uppercase text-gray-400 group-hover:text-gray-600 transition-colors";
+                    if(badgeGoods) badgeGoods.className = "text-[10px] font-bold px-3 py-1 rounded-full bg-gray-100 text-gray-400 transition-colors";
+
+                    docMinLabel.textContent = `Мин. ${state.direction === 'import' ? '0.5' : '0.3'} кг`;
+                } else {
+                    // Inactive Doc
+                    btnTypeDoc.className = "group border-2 rounded-2xl p-4 flex flex-col items-center gap-2 transition-all duration-300 active:scale-95 bg-white text-gray-500 border-gray-100 hover:border-gray-300 hover:bg-gray-50 opacity-80 hover:opacity-100";
+                    labelDoc.className = "font-black text-sm uppercase text-gray-400 group-hover:text-gray-600 transition-colors";
+                    docMinLabel.className = "text-[10px] font-bold px-3 py-1 rounded-full bg-gray-100 text-gray-400 transition-colors";
+                   
+                    // Active Goods
+                    btnTypeGoods.className = "group border-2 rounded-2xl p-4 flex flex-col items-center gap-2 transition-all duration-300 active:scale-95 bg-yellow-50 border-[#F59E0B] shadow-xl shadow-yellow-900/10 scale-[1.02] relative z-10";
+                    labelGoods.className = "font-black text-sm uppercase text-[#F59E0B] transition-colors";
+                    if(badgeGoods) badgeGoods.className = "text-[10px] font-bold px-3 py-1 rounded-full bg-yellow-100 text-[#F59E0B] transition-colors";
+                   
+                    docMinLabel.textContent = `Мин. ${state.direction === 'import' ? '0.5' : '0.3'} кг`;
+                }
+            }
+        }
+
+        // ... (Settings Modal and Snowfall logic remain unchanged) ...
+        function openSettings() {
+            settingFuel.value = state.settings.fuelSurcharge;
+            settingNsp.value = state.settings.nsp;
+            settingEur.value = state.settings.eurToKgs;
+            settingUsd.value = state.settings.usdToKgs;
+            settingDemandDoc.value = state.settings.demandDoc;
+            settingDemandGoods.value = state.settings.demandGoods;
+            settingDtp.value = state.settings.dtp; // Заполняем поле при открытии
+           
+            settingsModal.classList.remove('hidden');
+            setTimeout(() => settingsModal.classList.remove('opacity-0'), 10);
+        }
+
+        function closeSettings() {
+            settingsModal.classList.add('opacity-0');
+            setTimeout(() => settingsModal.classList.add('hidden'), 200);
+        }
+
+        function saveSettings() {
+            state.settings.fuelSurcharge = parseFloat(settingFuel.value) || 0;
+            state.settings.nsp = parseFloat(settingNsp.value) || 0;
+            state.settings.eurToKgs = parseFloat(settingEur.value) || 0;
+            state.settings.usdToKgs = parseFloat(settingUsd.value) || 0;
+            state.settings.demandDoc = parseFloat(settingDemandDoc.value) || 0;
+            state.settings.demandGoods = parseFloat(settingDemandGoods.value) || 0;
+            state.settings.dtp = parseFloat(settingDtp.value) || 0; // Сохраняем новое значение
+           
+            localStorage.setItem('dhlCalcSettingsJS', JSON.stringify(state.settings));
+            
+            // ОБНОВЛЯЕМ СПИСОК НАДБАВОК, ЧТОБЫ ОТОБРАЗИТЬ НОВУЮ ЦЕНУ DTP
+            renderSurcharges();
+            
+            calculate();
+            closeSettings();
+        }
+
+        function createSnowflakes() {
+            const container = document.getElementById('snowfall-container');
+            for(let i=0; i<15; i++) {
+                const div = document.createElement('div');
+                div.className = "absolute bg-white rounded-full animate-bounce";
+                const size = Math.random() * 6 + 4;
+                div.style.width = `${size}px`;
+                div.style.height = `${size}px`;
+                div.style.left = `${Math.random() * 100}%`;
+                div.style.top = '-20px';
+                div.style.animation = `fall ${Math.random() * 3 + 4}s linear infinite`;
+                div.style.animationDelay = `${Math.random() * 5}s`;
+                container.appendChild(div);
+            }
+        }
+
+        init();
+
+    </script>
+</body>
+</html>
