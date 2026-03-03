@@ -2121,6 +2121,7 @@
 
             const HEAVY_THRESHOLD = 25.1;
             const OVERWEIGHT_THRESHOLD = 70.1;
+            const OVERSIZE_SIDE_THRESHOLD = 85;
 
             state.pieces.forEach((p, idx) => {
                 let rawWeight = parseFloat(p.weight) || 0;
@@ -2149,6 +2150,18 @@
                 totalVolumetricWeight += vol;
                 totalChargeableSum += roundedPieceChg;
                 
+                const isOversize = Math.max(l, wd, h) >= OVERSIZE_SIDE_THRESHOLD;
+
+                // На одно место применяется только одна основная надбавка:
+                // 1) >70.1кг (100€), 2) >25.1кг (20€), 3) негабарит >=85см (20€).
+                // Если условий несколько — берём самую дорогую, при равной цене приоритет у весовой.
+                let primarySurchargeId = null;
+                if (rawChg >= OVERWEIGHT_THRESHOLD) {
+                    primarySurchargeId = 'overweightPiece';
+                } else if (rawChg >= HEAVY_THRESHOLD) {
+                    primarySurchargeId = 'heavyPiece';
+                } else if (isOversize) {
+                    primarySurchargeId = 'oversizePiece';
                 // Для каждого места берём оплачиваемый вес (max физ./объёмного)
                 // и выбираем только одну весовую надбавку — самую дорогую.
                 if (rawChg >= OVERWEIGHT_THRESHOLD) {
@@ -2156,17 +2169,18 @@
                 } else if (rawChg >= HEAVY_THRESHOLD) {
                     heavyCount++;
                 }
-                
-                const dims = [l, wd, h].sort((a, b) => b - a);
-                const isOversize = dims[0] > 100 || dims[1] > 80; // Простая проверка негабарита
 
-                if (isOversize) oversizeCount++;
+                if (primarySurchargeId === 'overweightPiece') overweightCount++;
+                if (primarySurchargeId === 'heavyPiece') heavyCount++;
+                if (primarySurchargeId === 'oversizePiece') oversizeCount++;
                 
                 piecesBreakdown.push({
                     index: idx + 1,
                     act, vol, 
                     chg: roundedPieceChg, 
                     isOverweight: rawChg >= OVERWEIGHT_THRESHOLD,
+                    isOversize: isOversize,
+                    primarySurchargeId
                     isOversize: isOversize
                 });
             });
